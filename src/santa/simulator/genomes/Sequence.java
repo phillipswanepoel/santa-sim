@@ -6,7 +6,10 @@
  */
 package santa.simulator.genomes;
 
+import java.util.Arrays;
 import java.util.SortedSet;
+import java.util.List;
+import java.util.ArrayList;
 
 /**
  * The interface for a Sequence.
@@ -78,4 +81,12 @@ public interface Sequence {
 	 * Create a hybrid sequence by combining two parents.
 	 */
 	Sequence recombineWith(Sequence other, SortedSet<Integer> breakPoints);
+
+    List<List<Integer>> getIndelList();
+
+    void setIndelList(List<List<Integer>> indels); 
+
+    void addIndelEvent(List<Integer> indelEvent);
+
+    void removeIndelEvent(List<Integer> indelEvent);
 }

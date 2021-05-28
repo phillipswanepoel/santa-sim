@@ -43,5 +43,11 @@ public class Insertion extends Indel {
 		return seq.getLength();
 	}
 
+	@Override
+	public int getPosition() {
+		return position;
+	}
+
     public final SimpleSequence seq;
+    private int position = 0;
 }

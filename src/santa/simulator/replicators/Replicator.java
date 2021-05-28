@@ -14,6 +14,6 @@ public interface Replicator {
 
 	int getParentCount();
 
-    void replicate(Virus virus, Virus[] parents, Mutator mutator, FitnessFunction fitnessFunction, GenePool genePool);
+    void replicate(Virus virus, Virus[] parents, Mutator mutator, FitnessFunction fitnessFunction, GenePool genePool, int generation);
 
 }

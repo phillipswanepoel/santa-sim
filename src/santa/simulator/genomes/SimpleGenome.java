@@ -1,18 +1,22 @@
 package santa.simulator.genomes;
 
 import java.util.SortedSet;
+import java.util.Arrays;
+import java.util.List;
+import java.util.ArrayList;
 
 /**
  * @author Andrew Rambaut
  */
 public class SimpleGenome extends BaseGenome {
 	public SimpleGenome() {
+
 	}
 
 	public void duplicate(SimpleGenome source) {
 		this.sequence = new SimpleSequence(source.sequence);
 		this.fitnessCache = source.fitnessCache.clone();
-		this.descriptor = source.descriptor;
+		this.descriptor = source.descriptor;		
 		setLogFitness(source.getLogFitness());
 		assert(this.descriptor.getGenomeLength() == this.sequence.getLength());
 	}
@@ -55,9 +59,10 @@ public class SimpleGenome extends BaseGenome {
 		assert(this.descriptor.getGenomeLength() == getLength());
 
 		for (Mutation m : newMutations) {
-			int l = getLength();
-			if (m.apply(this)) {
-
+			int l = getLength();			
+				
+			if (m.apply(this)) {				
+				
 				// If the genome length changes, a new, updated GenomeDescription object must be created.  The 
 				// genome description objects are linked together in a tree so we can trace the evolutionary history of
 				// indel events for a genome.
@@ -112,15 +117,20 @@ public class SimpleGenome extends BaseGenome {
 	 * @param count number of nucleotides to be deleted.
 	 * @return boolean indication of success
 	 **/
-	public boolean delete(int position, int count) {
-		assert(count >= 0);
-		assert(position >=0 && position < sequence.getLength());
+	public boolean delete(int position, int count) {		
+
+		assert(count >= 0) : "COUNT IS < 0, pos = " + position;
+		assert(position >=0 && position < sequence.getLength()) : "position not within bounds " + position + "Length" + sequence.getLength();
 		int avail = Math.min(count, sequence.getLength()-position);
-		if (count != avail)
+
+		if (count != avail) {
 			return false;
+		}	
 		return sequence.deleteSubSequence(position, count);
 
   	}
+
+
 
 
 	/**
@@ -142,5 +152,6 @@ public class SimpleGenome extends BaseGenome {
 	 * This sequence is continually maintained in the face of substitutions, insertions, and deletions.
 	 */
 	private SimpleSequence sequence = null;
+	
 
 }

@@ -155,6 +155,7 @@ public class NucleotideMutator extends AbstractMutator {
 				if (count != 0 && (count % 3) == 0) {
 					mutlogger.finest("delete: " + count + "@" + pos + " on len " + genome.getLength());
 					mutations.add(new Deletion(pos, count));
+
 				}
 			}
 		} else {

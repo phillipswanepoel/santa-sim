@@ -40,7 +40,7 @@ public class RecombinantReplicatorWithHotSpots implements Replicator {
 	}
 	
 	public void replicate(Virus virus, Virus[] parents, Mutator mutator,
-			FitnessFunction fitnessFunction, GenePool genePool) {
+			FitnessFunction fitnessFunction, GenePool genePool, int generation) {
 		
         if (Random.nextUniform(0.0, 1.0) < dualInfectionProbability * recombinationProbability) {
             // dual infection and recombination

@@ -49,6 +49,10 @@ public class Mutation  implements Comparable<Mutation>  {
 	public int length() {
 		return 1;
 	}
+
+	public int getPosition() {
+		return position;
+	}
 	
 	/**
 	 * create a list of nucleotides changed by this mutation.

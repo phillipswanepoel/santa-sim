@@ -111,6 +111,6 @@ public class SimulationEpoch {
 
     public Replicator getReplicator() {
         return replicator;
-    }
+    } 
 
 }

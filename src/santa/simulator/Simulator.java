@@ -44,7 +44,7 @@ public class Simulator {
 		
 		System.gc();
 		long usedMemoryBefore = usedMemory();
-		memlogger.fine("Initial memory used: " + readableByteCount(usedMemoryBefore));
+		memlogger.fine("Initial memory used: " + readableByteCount(usedMemoryBefore));        
 
         for (int replicate = 0; replicate < replicateCount; replicate++) {
 

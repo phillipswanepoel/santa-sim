@@ -47,8 +47,9 @@ public class SimpleGenePool extends BaseGenePool {
             SimpleGenome oldGenome = (SimpleGenome)genome;
             SimpleGenome newGenome;
 
-            newGenome = recycleOrCreateGenome(null);
-            newGenome.duplicate(oldGenome);
+            newGenome = recycleOrCreateGenome(null);     
+
+            newGenome.duplicate(oldGenome);          
 
             newGenome.setFrequency(1);
 

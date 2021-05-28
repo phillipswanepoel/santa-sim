@@ -19,6 +19,7 @@ import santa.simulator.genomes.Sequence;
 import santa.simulator.mutators.Mutator;
 import santa.simulator.phylogeny.Phylogeny;
 import santa.simulator.replicators.Replicator;
+import santa.simulator.replicators.RecombinantTracker;
 import santa.simulator.selectors.Selector;
 
 /**
@@ -44,6 +45,8 @@ public class Population {
 
     public void initialize(List<Sequence> inoculum, int initialPopulationSize) {
         Genome[] ancestors;
+
+        RecombinantTracker tracker = new RecombinantTracker();
 
         genePool.initialize();
         currentGeneration.clear();
@@ -120,7 +123,7 @@ public class Population {
 
             // replicate the parents to create a new virus
             Virus child = new Virus();
-            replicator.replicate(child, parents, mutator, fitnessFunction, genePool);
+            replicator.replicate(child, parents, mutator, fitnessFunction, genePool, generation);
             currentGeneration.add(child);
         }
 

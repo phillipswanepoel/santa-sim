@@ -4,7 +4,8 @@ import santa.simulator.Virus;
 import santa.simulator.fitness.FitnessFunction;
 import santa.simulator.genomes.*;
 import santa.simulator.mutators.Mutator;
-
+import java.util.List;
+import java.util.ArrayList;
 import java.util.SortedSet;
 
 /**
@@ -22,7 +23,7 @@ public class ClonalReplicator implements Replicator {
 		return 1;
 	}
 
-    public void replicate(Virus virus, Virus[] parents, Mutator mutator, FitnessFunction fitnessFunction, GenePool genePool) {
+    public void replicate(Virus virus, Virus[] parents, Mutator mutator, FitnessFunction fitnessFunction, GenePool genePool, int generation) {
 
         Genome parentGenome = parents[0].getGenome();
 
@@ -32,5 +33,35 @@ public class ClonalReplicator implements Replicator {
 
         virus.setGenome(genome);
         virus.setParent(parents[0]);
+
+        //Adding indel events to virus indel list
+        int pos = 0;
+        int size = 0; 
+
+        for (Mutation x: mutations) {
+            boolean isDeletion = x instanceof Deletion;
+            boolean isInsertion = x instanceof Insertion;
+
+            if (isDeletion || isInsertion) {
+                System.out.println("*");
+                System.out.println(virus.getIndelList());
+                System.out.println("");
+                    
+                pos = x.getPosition();
+                size = x.length();  
+
+                List<Integer> indels = new ArrayList<Integer>();
+                indels.add(pos);
+                indels.add(size);
+                virus.addIndelEvent(indels);
+
+                System.out.println("**");
+                System.out.println(virus.getIndelList());
+                System.out.println("");
+                System.out.println(virus.getGenome().getLength());
+
+            }               
+        }
+
     }
 }

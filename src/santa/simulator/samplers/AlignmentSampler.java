@@ -5,6 +5,12 @@ import java.io.PrintStream;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.HashSet;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.ArrayList;
+import java.util.HashMap;
 
 import santa.simulator.Random;
 import santa.simulator.Virus;
@@ -12,6 +18,8 @@ import santa.simulator.genomes.AminoAcid;
 import santa.simulator.genomes.Feature;
 import santa.simulator.genomes.Nucleotide;
 import santa.simulator.population.Population;
+import santa.simulator.replicators.RecombinantTracker;
+import santa.simulator.replicators.RecombinationEvent;
 
 /**
  * @author Andrew Rambaut
@@ -229,7 +237,186 @@ public class AlignmentSampler implements Sampler {
         return result;
     }
 
+    class LengthComparator implements Comparator<List<Integer>> {
+        public int compare(final List<Integer> list1, final List<Integer> list2) {        
+            if (list1.get(0) == list2.get(0)) {
+                return Integer.compare(list1.get(1), list2.get(1));
+            }
+            else {
+                return Integer.compare(list1.get(0), list2.get(0));
+            }        
+        }
+    }
+
+    private List<List<Integer>> sortIndels(List<List<Integer>> insertions) {
+        List<List<Integer>> withoutOverlaps = insertions;      
+        Collections.sort(withoutOverlaps, new LengthComparator());
+        return withoutOverlaps;
+    }
+
+    //adds size gaps to string starting at position pos
+    private String addGaps(String s, int pos, int size) {
+        String gapChars = "-".repeat(size);
+        s = s.substring(0, pos) + gapChars + s.substring(pos, s.length());
+        return s;
+    }
+
+    
+    //the idea is have a collection of insert_events
+    //these will be then done in reverse order positionally (from end of sequence to beginning)
+    //all viruses in affected_viruses will have subseq inserted, rest will have gap characters inserted
+    private class Insert_Event {
+        private int position;
+        private int size;   
+        private int translation;     
+        private Set<Integer> affected_viruses = new HashSet<Integer>(); //idea is to list all viruses where seq inserted, rest gaps
+        private String subseq;
+
+        public Insert_Event(int pos, int s, int translation, String subs) {
+            this.position = pos;
+            this.size = s;  
+            this.translation = translation;          
+            this.subseq = subs;
+        }
+
+        public Insert_Event(int pos, int s, int translation, int virus_index, String subs) {
+            this.position = pos;
+            this.size = s;           
+            this.subseq = subs;
+            this.translation = translation;   
+            this.affected_viruses.add(virus_index);
+        }
+
+        public void add_virus(int virus_index) {
+            this.affected_viruses.add(virus_index);
+        }
+
+        public List<Integer> getIns() {
+            List<Integer> ins = new ArrayList<>();
+            ins.add(this.position);
+            ins.add(this.size);
+            ins.add(this.translation);
+            return ins;
+        }
+
+        public Set<Integer> getViruses() {
+            return this.affected_viruses;
+        }
+
+        public String getSubseq() {
+            return this.subseq;
+        }
+    }
+
+    
+
+    //calculates the final position of insert, once all remaining insertions and deletions have happened
+    private int calc_insert_pos(List<List<Integer>> indels, int insert_index) {
+
+        int initial_pos = indels.get(insert_index).get(0);
+        int finalpos = initial_pos;
+
+        if (insert_index >= indels.size()-1) {
+            return finalpos;
+        }
+        //add impact 
+        for (int k = insert_index+1; k < indels.size(); k++) {
+            if (indels.get(k).get(0) < initial_pos) {
+                finalpos = finalpos - indels.get(k).get(1);
+            }
+        }
+
+        return finalpos;
+    }
+
+    private List<Insert_Event> insertion_events = new ArrayList<>();
+    private Set<List<Integer>> seenInsertions = new HashSet<List<Integer>>();
+    private HashMap<List<Integer>, Insert_Event> insertion_map = new HashMap<List<Integer>, Insert_Event>();    
+
+    //returns string with gap characters added and insertions removed
+    private String remove_indels(String s, List<List<Integer>> indels, int virus_index) {
+
+        int counter = 0;
+
+        for (List<Integer> indel : indels) {
+            String subseq = "";
+
+            if (indel.get(1) < 0) {
+                s = addGaps(s, indel.get(0), -indel.get(1));
+            }
+            else {
+                subseq = s.substring(indel.get(0), indel.get(0)+indel.get(1));
+                s = s.substring(0, indel.get(0)) + s.substring(indel.get(0)+indel.get(1), s.length());
+
+                //if insertion in seenInsertions, just add this virus index to relevant class
+                //else create new insert_event
+                List<Integer> mod_indel = new ArrayList<Integer>(indel);
+                mod_indel.set(0, mod_indel.get(0) + mod_indel.get(2));
+                mod_indel.remove(2);
+
+                if (seenInsertions.contains(mod_indel)) {
+                    insertion_map.get(mod_indel).add_virus(virus_index);
+                }
+                else {
+                    seenInsertions.add(mod_indel);                   
+                    insertion_map.put(mod_indel,  new Insert_Event(indel.get(0), indel.get(1), indel.get(2), virus_index, subseq));
+                }
+
+            }
+            counter++;
+        }
+
+        return s;
+    }
+ 
+
+    private List<String> add_insertions(List<String> genomeStringsList) {
+
+        List<String> inserted_strings = new ArrayList<String>(genomeStringsList);
+        Set<List<Integer>> keys = insertion_map.keySet();
+
+        for (List<Integer> key : keys) {
+            //System.out.println(key);
+            //System.out.println(insertion_map.get(key).getSubseq());
+            //System.out.println(insertion_map.get(key).getViruses());
+            //System.out.println("");
+
+            Insert_Event temp = insertion_map.get(key);
+
+            List<Integer> indel = new ArrayList<Integer>(temp.getIns());
+            int pos = indel.get(0);
+            int size = indel.get(1);
+            int translation = indel.get(2);
+            String subseq = temp.getSubseq();
+            Set<Integer> affected = temp.getViruses();
+
+            for (int p = 0; p < inserted_strings.size(); p++) {
+
+                if (affected.contains(p)) {
+                    String old_string = inserted_strings.get(p); 
+                    String new_string = old_string.substring(0, pos-translation) + subseq + old_string.substring(pos-translation, old_string.length());
+
+                    inserted_strings.set(p, new_string);
+
+                }
+                else {
+                    String old_string = inserted_strings.get(p);
+                    String new_string = addGaps(old_string, pos-translation, size);
+
+                    inserted_strings.set(p, new_string);
+                }
+            }          
+
+        }
+
+        return inserted_strings;
+    }
+
+
     private void writeFastaFormat(int generation, Virus[] sample) {
+        Set<Integer> seenEvents = new HashSet<Integer>();
+        List<String> genomeStringsList = new ArrayList<String>();        
+
         if (consensus) {
             String l = substituteVariables(label, generation, 0, 0.0);
 
@@ -238,15 +425,89 @@ public class AlignmentSampler implements Sampler {
         } else {
             int i = 1;
 
-            for (Virus virus : sample) {
+            //adding indel events to set
+            Set<List<Integer>> seenInsertions = new HashSet<List<Integer>>();
+            HashMap<Integer, ArrayList<List<Integer>>> toRemove = new HashMap<Integer, ArrayList<List<Integer>>>();
+            HashMap<Integer, ArrayList<List<Integer>>> toAdd = new HashMap<Integer, ArrayList<List<Integer>>>();   
+
+            List<List<Integer>> list_eventsList = new ArrayList<List<Integer>>();
+            List<String> nameList = new ArrayList<String>();
+
+            int counter = 0;
+            //Writing each virus to fasta
+            //Inserting deletions
+            for (Virus virus : sample) {   
+
+                //1. reverse chrono order
+                //2. remove deletions AND insertions (save insertion sequence)
+                //3. re-introduce insertions (insert seqs or gaps)
+                //4. voila
+
+                List<Integer> eventList = virus.getRecombinationList();   
+                list_eventsList.add(eventList);
+
                 String l = substituteVariables(label, generation, i, virus.getFitness());
+                nameList.add(l);
 
-                destination.println(">" + l);
-                destination.println(virus.getGenome().getSequence().getNucleotides());
+                String genomeString = virus.getGenome().getSequence().getNucleotides();
+                               
+                List<List<Integer>> indelsList = new ArrayList<List<Integer>>(virus.getGenome().getSequence().getIndelList());
 
+                System.out.println("GENOME: " + Integer.toString(counter+1)); 
+                System.out.println(indelsList);              
+                Collections.reverse(indelsList); 
+                
+                genomeString = remove_indels(genomeString, indelsList, counter);
+                  
+                genomeStringsList.add(genomeString);
+                //destination.println(">" + l + "_" + virus.getGenome() + "_" + eventList);
+                //destination.println(genomeString);
+
+                for (Integer event : eventList) {
+                    seenEvents.add(event);
+                }
+
+                counter++;
                 i++;
             }
+
+            List<String> finalStringsList = new ArrayList<String>(add_insertions(genomeStringsList));
+
+            for (int h = 0; h < finalStringsList.size(); h++) {
+                destination.println(">" + nameList.get(h) + "_" + sample[h].getGenome() + "_" + list_eventsList.get(h));
+                destination.println(finalStringsList.get(h));                
+            }
+
+
+            System.out.println("------------------------");
+
+        }        
+        //Printing recombination events that are seen in sample
+        try {
+
+        PrintStream recombPrinter = new PrintStream("recombination_events.txt");
+        recombPrinter.println("EventNum,Breakpoints,Generation,Recombinant,Parents,RecombinantSeq,ParentalSeqs");
+        List<RecombinationEvent> recList = RecombinantTracker.recombinationList;
+
+        for (int j = 0; j < recList.size(); j++) {
+
+            if (seenEvents.contains(j)) {
+                RecombinationEvent event = recList.get(j);            
+                recombPrinter.println(j + "," + event.getBreakpoints() + "," + 
+                event.getGeneration() + "," + event.getRecombinant() + "," + 
+                event.getParents() + "," + event.getRecombinantSequence() + "," +
+                event.getParentalSequences());
+            }
+            
         }
+        recombPrinter.close();
+
+        }
+        catch(FileNotFoundException ex) {
+            System.out.println("RECOMBINATION_EVENTS FILE NOT FOUND!");
+        }
+
+
     }
 
     private void writeXMLFormat(int generation, Virus[] sample) {
@@ -256,7 +517,7 @@ public class AlignmentSampler implements Sampler {
         int i = 1;
         for (Virus virus : sample) {
             String l = substituteVariables(label, generation, i, virus.getFitness());
-            destination.println("\t<sequence label=\"" + l+ "\">");
+            destination.println("\t<sequence label=\"" + l + "\">");
             destination.println("\t\t" + virus.getGenome().getSequence().getNucleotides());
             destination.println("\t</sequence>");
             i++;

@@ -36,11 +36,13 @@ public interface Genome {
 
     double getFitness();
 
-    int getFrequency();
+    int getFrequency();      
 
     void setFrequency(int frequency);
 
     void incrementFrequency();
+
+
 
     void setFitnessCache(FitnessFunction.FitnessGenomeCache cache);
 

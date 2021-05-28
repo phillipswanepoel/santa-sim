@@ -64,5 +64,11 @@ public class Deletion extends Indel {
 		return -count;
 	}
 
+	@Override
+	public int getPosition() {
+		return position;
+	}
+
     public final int count; // how many to delete
+    private int position = 0;
 }

@@ -13,7 +13,7 @@ public abstract class BaseGenome implements Genome {
 
 	public BaseGenome() {
 		this.fitnessCache = null;
-		this.descriptor = GenomeDescription.root;
+		this.descriptor = GenomeDescription.root;				
 	}
 
 	public void setDescription(GenomeDescription gd) {
@@ -231,6 +231,7 @@ public abstract class BaseGenome implements Genome {
 	}
 
 
+
 	/**
 	 * Reference to an GenomeDescription.  It is through the
 	 * decription that one can obtain Feature coordinates and SiteMaps
@@ -251,4 +252,7 @@ public abstract class BaseGenome implements Genome {
 	private int totalMutationCount = 0;
 
 	FitnessFunction.FitnessGenomeCache fitnessCache;
+
+	//List of indel events
+	
 }
