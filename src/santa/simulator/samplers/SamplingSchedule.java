@@ -17,6 +17,7 @@ public class SamplingSchedule {
 	}
 
 	public void addRecurringSampler(int frequency, Sampler sampler) {
+		sampFreq = frequency;
 		entries.add(new Entry(frequency, true, sampler));
 	}
 
@@ -52,6 +53,12 @@ public class SamplingSchedule {
     private boolean isSamplingTrees = false;
 
     private List<Entry> entries = new ArrayList<Entry>();
+
+    public static int getSampFreq() {
+    	return sampFreq;
+    }
+
+    public static int sampFreq = 0;
 
 	private class Entry {
 

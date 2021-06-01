@@ -26,6 +26,7 @@ import santa.simulator.genomes.Deletion;
 import santa.simulator.genomes.Sequence;
 import santa.simulator.mutators.Mutator;
 import santa.simulator.replicators.RecombinationEvent;
+import santa.simulator.samplers.SamplingSchedule;
 
 /**
  * @author rambaut
@@ -132,8 +133,10 @@ public class RecombinantReplicator implements Replicator {
 	        String fitnessStr = parents.stream().map(Genome::getLogFitness).map(Object::toString).collect(Collectors.joining(", "));
 	        EventLogger.log("Recombination: (" + fitnessStr + ") -> " + genome.getLogFitness());
 
-            if (generation > 0)
+	        //Only sample if in last 50% of generations
+            if (generation >= ((int) SamplingSchedule.getSampFreq()*0.60))
             {
+            	
             	//Getting recombination event list from both parents and concatenating them for recombinant
 	            LinkedHashSet<Integer> recombinations0 = vparents[0].getRecombinationList();
 	            LinkedHashSet<Integer> recombinations1 = vparents[1].getRecombinationList();

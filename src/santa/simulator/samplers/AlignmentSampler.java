@@ -497,7 +497,9 @@ public class AlignmentSampler implements Sampler {
             for (int j = 0; j < recList.size(); j++) {
 
                 if (seenEvents.contains(j)) {
-                    RecombinationEvent event = recList.get(j);            
+                    RecombinationEvent event = recList.get(j);
+                            
+                    //Before writing breakpoints, modify them by adding all insertions that happened before it.    
                     recombPrinter.println(j + "," + event.getBreakpoints() + "," + 
                     event.getGeneration() + "," + event.getRecombinant() + "," + 
                     event.getParents() + "," + event.getRecombinantSequence() + "," +
