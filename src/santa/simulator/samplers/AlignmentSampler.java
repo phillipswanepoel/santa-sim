@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -415,7 +416,9 @@ public class AlignmentSampler implements Sampler {
 
     private void writeFastaFormat(int generation, Virus[] sample) {
         Set<Integer> seenEvents = new HashSet<Integer>();
-        List<String> genomeStringsList = new ArrayList<String>();        
+        List<String> genomeStringsList = new ArrayList<String>();  
+        List<String> finalStringsList = new ArrayList<String>(); 
+        List<List<Integer>> list_eventsList = new ArrayList<List<Integer>>();     
 
         if (consensus) {
             String l = substituteVariables(label, generation, 0, 0.0);
@@ -430,7 +433,7 @@ public class AlignmentSampler implements Sampler {
             HashMap<Integer, ArrayList<List<Integer>>> toRemove = new HashMap<Integer, ArrayList<List<Integer>>>();
             HashMap<Integer, ArrayList<List<Integer>>> toAdd = new HashMap<Integer, ArrayList<List<Integer>>>();   
 
-            List<List<Integer>> list_eventsList = new ArrayList<List<Integer>>();
+            
             List<String> nameList = new ArrayList<String>();
 
             int counter = 0;
@@ -443,8 +446,9 @@ public class AlignmentSampler implements Sampler {
                 //3. re-introduce insertions (insert seqs or gaps)
                 //4. voila
 
-                List<Integer> eventList = virus.getRecombinationList();   
-                list_eventsList.add(eventList);
+                LinkedHashSet<Integer> eventList = virus.getRecombinationList(); 
+                List<Integer> events_to_add = new ArrayList<>(eventList);               
+                list_eventsList.add(events_to_add);
 
                 String l = substituteVariables(label, generation, i, virus.getFitness());
                 nameList.add(l);
@@ -471,10 +475,11 @@ public class AlignmentSampler implements Sampler {
                 i++;
             }
 
-            List<String> finalStringsList = new ArrayList<String>(add_insertions(genomeStringsList));
+            finalStringsList = new ArrayList<String>(add_insertions(genomeStringsList));
 
             for (int h = 0; h < finalStringsList.size(); h++) {
-                destination.println(">" + nameList.get(h) + "_" + sample[h].getGenome() + "_" + list_eventsList.get(h));
+                //destination.println(">" + nameList.get(h) + "_" + sample[h].getGenome() + "_" + list_eventsList.get(h));
+                destination.println(">" + (h+1) + "_" + sample[h].getGenome());
                 destination.println(finalStringsList.get(h));                
             }
 
@@ -485,28 +490,44 @@ public class AlignmentSampler implements Sampler {
         //Printing recombination events that are seen in sample
         try {
 
-        PrintStream recombPrinter = new PrintStream("recombination_events.txt");
-        recombPrinter.println("EventNum,Breakpoints,Generation,Recombinant,Parents,RecombinantSeq,ParentalSeqs");
-        List<RecombinationEvent> recList = RecombinantTracker.recombinationList;
+            PrintStream recombPrinter = new PrintStream("recombination_events.txt");
+            recombPrinter.println("EventNum,Breakpoints,Generation,Recombinant,Parents,RecombinantSeq,ParentalSeqs");
+            List<RecombinationEvent> recList = RecombinantTracker.recombinationList;
 
-        for (int j = 0; j < recList.size(); j++) {
+            for (int j = 0; j < recList.size(); j++) {
 
-            if (seenEvents.contains(j)) {
-                RecombinationEvent event = recList.get(j);            
-                recombPrinter.println(j + "," + event.getBreakpoints() + "," + 
-                event.getGeneration() + "," + event.getRecombinant() + "," + 
-                event.getParents() + "," + event.getRecombinantSequence() + "," +
-                event.getParentalSequences());
+                if (seenEvents.contains(j)) {
+                    RecombinationEvent event = recList.get(j);            
+                    recombPrinter.println(j + "," + event.getBreakpoints() + "," + 
+                    event.getGeneration() + "," + event.getRecombinant() + "," + 
+                    event.getParents() + "," + event.getRecombinantSequence() + "," +
+                    event.getParentalSequences());
+                }
+                
             }
-            
-        }
-        recombPrinter.close();
+            recombPrinter.close();
 
         }
         catch(FileNotFoundException ex) {
             System.out.println("RECOMBINATION_EVENTS FILE NOT FOUND!");
         }
 
+        //Printing all sampled sequene names together with associated recombination events
+        try {
+
+            PrintStream recombPrinter2 = new PrintStream("sequence_events_map.txt");
+            recombPrinter2.println("Sequence*Events");        
+            
+            for (int h = 0; h < finalStringsList.size(); h++) {            
+                recombPrinter2.println((h+1) + "_" + sample[h].getGenome() + "*" + list_eventsList.get(h));                            
+            }
+
+            recombPrinter2.close();
+
+        }
+        catch(FileNotFoundException ex) {
+            System.out.println("RECOMBINATION_EVENTS FILE NOT FOUND!");
+        }
 
     }
 

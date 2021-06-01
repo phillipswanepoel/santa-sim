@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.LinkedHashSet; 
 import java.util.List;
 import java.util.ArrayList;
 import java.util.stream.Collectors;
@@ -134,9 +135,10 @@ public class RecombinantReplicator implements Replicator {
             if (generation > 0)
             {
             	//Getting recombination event list from both parents and concatenating them for recombinant
-	            List<Integer> recombinations0 = vparents[0].getRecombinationList();
-	            List<Integer> recombinations1 = vparents[1].getRecombinationList();
-	            List<Integer> newRecombinationList = new ArrayList<Integer>();
+	            LinkedHashSet<Integer> recombinations0 = vparents[0].getRecombinationList();
+	            LinkedHashSet<Integer> recombinations1 = vparents[1].getRecombinationList();
+	            LinkedHashSet<Integer> newRecombinationList = new LinkedHashSet<Integer>();
+
 
 	            newRecombinationList.addAll(recombinations0);
 	            newRecombinationList.addAll(recombinations1);
@@ -176,7 +178,7 @@ public class RecombinantReplicator implements Replicator {
             // single infection - no recombination...
             Genome parentGenome = vparents[0].getGenome();
                      
-            List<Integer> recombinations = vparents[0].getRecombinationList();          
+            LinkedHashSet<Integer> recombinations = vparents[0].getRecombinationList();          
 
             SortedSet<Mutation> mutations = mutator.mutate(parentGenome);
               
@@ -184,9 +186,7 @@ public class RecombinantReplicator implements Replicator {
 
             virus.setGenome(genome);
             virus.setParent(vparents[0]);
-            virus.setRecombinationList(recombinations);
-
- 
+            virus.setRecombinationList(recombinations); 
             
         }
 

@@ -5,6 +5,7 @@ import santa.simulator.genomes.Genome;
 import java.util.Arrays;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 
 /**
  * @author rambaut
@@ -38,7 +39,7 @@ public class Virus {
 		return genome.getFitness();
 	}
 
-    public List<Integer> getRecombinationList() {
+    public LinkedHashSet<Integer> getRecombinationList() {
         return recombinationList;
     }
 
@@ -55,8 +56,8 @@ public class Virus {
         this.recombinationList.add(recombIndex);
     }
 
-    public void setRecombinationList(List<Integer> recombinationList) {
-        List<Integer> newList = new ArrayList<Integer>(recombinationList);
+    public void setRecombinationList(LinkedHashSet<Integer> recombinationList) {
+        LinkedHashSet<Integer> newList = new LinkedHashSet<Integer>(recombinationList);        
         this.recombinationList = newList;
     }
 
@@ -70,7 +71,7 @@ public class Virus {
 
     private Genome genome = null;
     private Virus parent = null;
-    private int offspringCount = 0;
-    private List<Integer> recombinationList = new ArrayList<>();   
+    private int offspringCount = 0;    
+    private LinkedHashSet<Integer> recombinationList = new LinkedHashSet<Integer>(); 
 
 }
