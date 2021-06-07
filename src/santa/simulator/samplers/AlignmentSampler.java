@@ -457,8 +457,8 @@ public class AlignmentSampler implements Sampler {
                                
                 List<List<Integer>> indelsList = new ArrayList<List<Integer>>(virus.getGenome().getSequence().getIndelList());
 
-                System.out.println("GENOME: " + Integer.toString(counter+1)); 
-                System.out.println(indelsList);              
+                //System.out.println("GENOME: " + Integer.toString(counter+1)); 
+                //System.out.println(indelsList);              
                 Collections.reverse(indelsList); 
                 
                 genomeString = remove_indels(genomeString, indelsList, counter);
@@ -477,16 +477,31 @@ public class AlignmentSampler implements Sampler {
 
             finalStringsList = new ArrayList<String>(add_insertions(genomeStringsList));
 
+            int ini_len = finalStringsList.get(0).length();
+        
+            for (String seq: finalStringsList) {
+
+                if (seq.length() != ini_len) {
+                    System.out.println("WARNING, NOT ALL SAME LENGTH. Misalignment very likely");
+                    break;
+                    //System.exit(1);
+                }         
+
+            }  
+
             for (int h = 0; h < finalStringsList.size(); h++) {
                 //destination.println(">" + nameList.get(h) + "_" + sample[h].getGenome() + "_" + list_eventsList.get(h));
-                destination.println(">" + (h+1) + "_" + sample[h].getGenome());
+                //destination.println(">" + (h+1) + "_" + sample[h].getGenome());
+                destination.println(">" + (h+1));
                 destination.println(finalStringsList.get(h));                
             }
 
 
-            System.out.println("------------------------");
+            //System.out.println("------------------------");
 
-        }        
+        }
+
+              
         //Printing recombination events that are seen in sample
         try {
 
@@ -521,7 +536,7 @@ public class AlignmentSampler implements Sampler {
             recombPrinter2.println("Sequence*Events");        
             
             for (int h = 0; h < finalStringsList.size(); h++) {            
-                recombPrinter2.println((h+1) + "_" + sample[h].getGenome() + "*" + list_eventsList.get(h));                            
+                recombPrinter2.println((h+1) + "*" + list_eventsList.get(h));                            
             }
 
             recombPrinter2.close();

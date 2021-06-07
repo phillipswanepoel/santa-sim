@@ -209,7 +209,7 @@ public final class SimpleSequence implements Sequence {
 		indel.add(-count);
 		indel.add(countChanges(pos));
 
-		this.indelList.add(indel);			
+		this.indelList.add(indel);
 
 		return(true);
 	}
@@ -230,7 +230,7 @@ public final class SimpleSequence implements Sequence {
 		indel.add(source.getLength());
 		indel.add(countChanges(start));
 
-		this.indelList.add(indel);
+		this.indelList.add(indel);	
 
 		return(true);
 	}
@@ -489,8 +489,8 @@ public final class SimpleSequence implements Sequence {
 
 			breakPoints_with_end.add(parents[1].getLength());
 		} else {
-
-			breakPoints_with_end.add(parents[0].getLength());
+			breakPoints_with_end.add(parents[1].getLength());
+			//breakPoints_with_end.add(parents[0].getLength());
 		}
 		
 		//Looping through breakpoints and adding indels that fall between consecutive ones
@@ -516,7 +516,7 @@ public final class SimpleSequence implements Sequence {
 
 			for (List<Integer> indel1: updated_indels1) {				
 				if (indel1.get(0) < endp && indel1.get(0) >= startp) {
-					if (indel1.get(0) + indel1.get(1) >= endp) {
+					if (indel1.get(0) + indel1.get(1) >= endp) {						
 						int sign1 = (int) Math.signum(indel1.get(1));
 						frameShift[0] = frameShift[0] + ((endp - indel1.get(0))*sign1);
 					} else {
@@ -526,7 +526,7 @@ public final class SimpleSequence implements Sequence {
 			}
 			for (List<Integer> indel2: updated_indels2) {
 				if (indel2.get(0) < endp && indel2.get(0) >= startp) {
-					if (indel2.get(0) + indel2.get(1) >= endp) {
+					if (indel2.get(0) + indel2.get(1) >= endp) {						
 						int sign2 = (int) Math.signum(indel2.get(1));					
 						frameShift[1] = frameShift[1] + ((endp - indel2.get(0))*sign2);
 					} else {
@@ -587,7 +587,7 @@ public final class SimpleSequence implements Sequence {
 						recombinant_indel_list.add(startIndel);
 
 					} else if ( ((currentStart <= pos) && (pos < currentEnd)) && ((pos + size) >= currentEnd) ) {
-						//Indel divided by end breakpoint
+						//Indel divided by end breakpoint						
 						List<Integer> dividedIndel = new ArrayList<Integer>();
 						dividedIndel.add(pos);
 						dividedIndel.add((currentEnd - pos)*sign);
@@ -596,7 +596,7 @@ public final class SimpleSequence implements Sequence {
 						recombinant_indel_list.add(dividedIndel);
 
 					} else if ( (pos < currentStart) && ((pos + size) > currentStart) && ((pos + size) < currentEnd)) {
-						//Indel divided by starting breakpoint
+						//Indel divided by starting breakpoint						
 						List<Integer> dividedIndel = new ArrayList<Integer>();
 						dividedIndel.add(currentStart);
 						dividedIndel.add((pos + size - currentStart)*sign);
