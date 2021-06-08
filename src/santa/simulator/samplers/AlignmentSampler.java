@@ -457,7 +457,7 @@ public class AlignmentSampler implements Sampler {
                                
                 List<List<Integer>> indelsList = new ArrayList<List<Integer>>(virus.getGenome().getSequence().getIndelList());
 
-                System.out.println("GENOME: " + Integer.toString(counter+1)); 
+                //System.out.println("GENOME: " + Integer.toString(counter+1)); 
                 //System.out.println(indelsList);              
                 Collections.reverse(indelsList); 
                 

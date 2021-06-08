@@ -134,7 +134,8 @@ public class RecombinantReplicator implements Replicator {
 	        EventLogger.log("Recombination: (" + fitnessStr + ") -> " + genome.getLogFitness());
 
 	        //Only sample if in last 80% of generations
-            if (generation >= ((int) SamplingSchedule.getSampFreq()*0.20))
+	        //generation >= ((int) SamplingSchedule.getSampFreq()*0.20)
+            if (generation >= 1)
             {
             	
             	//Getting recombination event list from both parents and concatenating them for recombinant
