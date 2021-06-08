@@ -457,7 +457,7 @@ public class AlignmentSampler implements Sampler {
                                
                 List<List<Integer>> indelsList = new ArrayList<List<Integer>>(virus.getGenome().getSequence().getIndelList());
 
-                //System.out.println("GENOME: " + Integer.toString(counter+1)); 
+                System.out.println("GENOME: " + Integer.toString(counter+1)); 
                 //System.out.println(indelsList);              
                 Collections.reverse(indelsList); 
                 
@@ -506,7 +506,7 @@ public class AlignmentSampler implements Sampler {
         try {
 
             PrintStream recombPrinter = new PrintStream("recombination_events.txt");
-            recombPrinter.println("EventNum,Breakpoints,Generation,Recombinant,Parents,RecombinantSeq,ParentalSeqs");
+            recombPrinter.println("EventNum*Breakpoints*Generation*Recombinant*Parents*RecombinantSeq*ParentalSeqs");
             List<RecombinationEvent> recList = RecombinantTracker.recombinationList;
 
             for (int j = 0; j < recList.size(); j++) {
@@ -515,9 +515,9 @@ public class AlignmentSampler implements Sampler {
                     RecombinationEvent event = recList.get(j);
                             
                     //Before writing breakpoints, modify them by adding all insertions that happened before it.    
-                    recombPrinter.println(j + "," + event.getBreakpoints() + "," + 
-                    event.getGeneration() + "," + event.getRecombinant() + "," + 
-                    event.getParents() + "," + event.getRecombinantSequence() + "," +
+                    recombPrinter.println(j + "*" + event.getBreakpoints() + "*" + 
+                    event.getGeneration() + "*" + event.getRecombinant() + "*" + 
+                    event.getParents() + "*" + event.getRecombinantSequence() + "*" +
                     event.getParentalSequences());
                 }
                 

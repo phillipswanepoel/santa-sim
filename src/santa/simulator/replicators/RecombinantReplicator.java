@@ -133,8 +133,8 @@ public class RecombinantReplicator implements Replicator {
 	        String fitnessStr = parents.stream().map(Genome::getLogFitness).map(Object::toString).collect(Collectors.joining(", "));
 	        EventLogger.log("Recombination: (" + fitnessStr + ") -> " + genome.getLogFitness());
 
-	        //Only sample if in last 50% of generations
-            if (generation >= ((int) SamplingSchedule.getSampFreq()*0.50))
+	        //Only sample if in last 80% of generations
+            if (generation >= ((int) SamplingSchedule.getSampFreq()*0.20))
             {
             	
             	//Getting recombination event list from both parents and concatenating them for recombinant
