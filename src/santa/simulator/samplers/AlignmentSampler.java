@@ -7,6 +7,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -418,7 +420,8 @@ public class AlignmentSampler implements Sampler {
         Set<Integer> seenEvents = new HashSet<Integer>();
         List<String> genomeStringsList = new ArrayList<String>();  
         List<String> finalStringsList = new ArrayList<String>(); 
-        List<List<Integer>> list_eventsList = new ArrayList<List<Integer>>();     
+        List<List<Integer>> list_eventsList = new ArrayList<List<Integer>>(); 
+        Integer endLength = 0;    
 
         if (consensus) {
             String l = substituteVariables(label, generation, 0, 0.0);
@@ -469,6 +472,8 @@ public class AlignmentSampler implements Sampler {
 
                 for (Integer event : eventList) {
                     seenEvents.add(event);
+                    //add a counter here, number of occurences of events
+                    //Then if an event appears in like 40%+ seqs, create another event that is the inverse.
                 }
 
                 counter++;
@@ -499,28 +504,60 @@ public class AlignmentSampler implements Sampler {
 
             //System.out.println("------------------------");
 
-        }
+        }       
+        
 
+        //First remove all events that are present in all sequences
+        //Remove from both recList and list_eventsList
+
+        //Finding events present in ALL sequences
+        List<Integer> events_to_remove = new ArrayList<Integer>(list_eventsList.get(0)); 
+
+        for (int a = 1; a < list_eventsList.size(); a++) {            
+            events_to_remove.retainAll(list_eventsList.get(a));
+        }     
+
+        //Removing those events
+        for (List<Integer> events : list_eventsList) {
+            events.removeAll(events_to_remove);
+        } 
+        seenEvents.removeAll(events_to_remove);
+      
               
         //Printing recombination events that are seen in sample
         try {
+
+            //System.out.println("LENGTH: ");
+            endLength = finalStringsList.get(0).replace("-", "").length();
+            //System.out.println(endLength);
 
             PrintStream recombPrinter = new PrintStream("recombination_events.txt");
             recombPrinter.println("EventNum*Breakpoints*Generation*Recombinant*Parents*RecombinantSeq*ParentalSeqs");
             List<RecombinationEvent> recList = RecombinantTracker.recombinationList;
 
             for (int j = 0; j < recList.size(); j++) {
-
                 if (seenEvents.contains(j)) {
+
                     RecombinationEvent event = recList.get(j);
-                            
-                    //Before writing breakpoints, modify them by adding all insertions that happened before it.    
-                    recombPrinter.println(j + "*" + event.getBreakpoints() + "*" + 
+
+                    //Modifying single breakpoints by adding start/end of genome.
+                    //This is to make analysis at later stages easier.
+                    SortedSet<Integer> breakpoints = new TreeSet<Integer>(event.getBreakpoints());                   
+                    if (breakpoints.size() == 1) {
+                        if (breakpoints.first() < endLength/2) {
+                            breakpoints.add(0);
+                        }
+                        else {
+                            breakpoints.add(endLength);
+                        }
+                    }
+
+                    //Before writing breakpoints, modify them by adding endpoint.    
+                    recombPrinter.println(j + "*" + breakpoints + "*" + 
                     event.getGeneration() + "*" + event.getRecombinant() + "*" + 
                     event.getParents() + "*" + event.getRecombinantSequence() + "*" +
                     event.getParentalSequences());
-                }
-                
+                }                
             }
             recombPrinter.close();
 
@@ -529,7 +566,7 @@ public class AlignmentSampler implements Sampler {
             System.out.println("RECOMBINATION_EVENTS FILE NOT FOUND!");
         }
 
-        //Printing all sampled sequene names together with associated recombination events
+        //Printing all sampled sequence names together with associated recombination events
         try {
 
             PrintStream recombPrinter2 = new PrintStream("sequence_events_map.txt");
