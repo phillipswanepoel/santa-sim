@@ -2,6 +2,7 @@ package santa.simulator.replicators;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.ArrayList;
 import santa.simulator.Virus;
 import santa.simulator.fitness.FitnessFunction;
 import santa.simulator.genomes.*;
@@ -16,7 +17,7 @@ import santa.simulator.replicators.RecombinantTracker;
  */
 public class RecombinationEvent {
 
-    public RecombinationEvent(Genome recombinant, String recombinantSequence, List<Genome> parents, List<String> parentalSequences, SortedSet<Integer> breakpoints, int gen) {
+    public RecombinationEvent(Genome recombinant, SortedSet<Integer> breakpoints, int gen, List<Genome> parents, String recombinantSequence,  List<String> parentalSequences ) {
         //to get parental sequences:
         //parents.get(0).getSequence().getNucleotides());
         //parents.get(1).getSequence().getNucleotides());
@@ -27,6 +28,20 @@ public class RecombinationEvent {
         this.breakpoints = breakpoints;
         this.gen = gen;
     }
+
+    public RecombinationEvent(Genome recombinant, SortedSet<Integer> breakpoints, int gen, List<Genome> parents) {
+        //to get parental sequences:
+        //parents.get(0).getSequence().getNucleotides());
+        //parents.get(1).getSequence().getNucleotides());
+        this.recombinant = recombinant;        
+        this.parents = parents;        
+        this.breakpoints = breakpoints;
+        this.gen = gen;
+        this.recombinantSequence = "";
+        this.parentalSequences = new ArrayList<String>();
+    }
+
+
 
     public Genome getRecombinant() {
         return recombinant;

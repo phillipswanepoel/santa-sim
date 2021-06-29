@@ -532,7 +532,7 @@ public class AlignmentSampler implements Sampler {
             //System.out.println(endLength);
 
             PrintStream recombPrinter = new PrintStream("recombination_events.txt");
-            recombPrinter.println("EventNum*Breakpoints*Generation*Recombinant*Parents*RecombinantSeq*ParentalSeqs");
+            recombPrinter.println("EventNum*Breakpoints*Generation*Recombinant*Parents");
             List<RecombinationEvent> recList = RecombinantTracker.recombinationList;
 
             for (int j = 0; j < recList.size(); j++) {
@@ -555,8 +555,7 @@ public class AlignmentSampler implements Sampler {
                     //Before writing breakpoints, modify them by adding endpoint.    
                     recombPrinter.println(j + "*" + breakpoints + "*" + 
                     event.getGeneration() + "*" + event.getRecombinant() + "*" + 
-                    event.getParents() + "*" + event.getRecombinantSequence() + "*" +
-                    event.getParentalSequences());
+                    event.getParents());
                 }                
             }
             recombPrinter.close();

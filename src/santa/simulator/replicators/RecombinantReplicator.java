@@ -150,8 +150,9 @@ public class RecombinantReplicator implements Replicator {
 	            //System.out.println(newRecombinationList);
 	            virus.setRecombinationList(newRecombinationList); 
 
-	            //Creating recombination event to store recombination information
-				RecombinationEvent rec = new RecombinationEvent(genome, genome.getSequence().getNucleotides(), parents, parentSeqs, breakPoints, generation);	
+	            //Creating recombination event to store recombination information	            
+				//RecombinationEvent rec = new RecombinationEvent(genome, genome.getSequence().getNucleotides(), parents, parentSeqs, breakPoints, generation);
+				RecombinationEvent rec = new RecombinationEvent(genome, breakPoints, generation, parents);	
 				
 				//System.out.println("********************************");
 				int len = RecombinantTracker.recombinationList.size();
