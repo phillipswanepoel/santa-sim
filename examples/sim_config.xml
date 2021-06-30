@@ -40,11 +40,7 @@
                         <lowFitness>0.95</lowFitness>
                         <minimumFitness>0.2</minimumFitness>
                     </fitness>
-                </purifyingFitness>
-                <neutralFitness>
-                    <sites>1-1043, 1048-1097, 1102-3299, 2304-3497, 3502-8999, 9004-10000</sites>
-                </neutralFitness>
-
+                </purifyingFitness>   
             </fitnessFunction>
 
 	        <mutator>
