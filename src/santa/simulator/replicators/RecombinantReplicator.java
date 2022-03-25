@@ -69,9 +69,8 @@ public class RecombinantReplicator implements Replicator {
 			//Storing parental sequences to store in recombination event
 			String parent1seq = parents.get(0).getSequence().getNucleotides();
 			String parent2seq = parents.get(1).getSequence().getNucleotides();
-			List<String> parentSeqs = Arrays.asList(parent1seq, parent2seq);
+			List<String> parentSeqs = Arrays.asList(parent1seq, parent2seq);			
 			
-
 			// sort the parents by increasing genome length
 			parents.sort((p1, p2) -> p1.getLength() - p2.getLength());
 
@@ -86,7 +85,8 @@ public class RecombinantReplicator implements Replicator {
 				nbreaks = 1;
 			}
 			else {
-				nbreaks = 2;
+				//nbreaks = 2;
+				nbreaks = 1;
 			}
 			
 			// Then draw the positions.
@@ -127,7 +127,7 @@ public class RecombinantReplicator implements Replicator {
 	        fitnessFunction.computeLogFitness(genome);
 
             virus.setGenome(genome);
-            virus.setParent(vparents[0]);                
+            virus.setParent(vparents[0]);    
 
             //Loggin stuff			
 	        String fitnessStr = parents.stream().map(Genome::getLogFitness).map(Object::toString).collect(Collectors.joining(", "));
@@ -136,7 +136,8 @@ public class RecombinantReplicator implements Replicator {
 	        //Only sample if in last 30% of generations
 	        //This is used for longer scale simulations (4000+ generations) and can be changed
 	        //The reason for doing this is that events too far back are generally undetectable noise, with some very rare exceptions.
-            if (generation >= ((int) SamplingSchedule.getSampFreq()*0.70))
+            //if (generation >= ((int) SamplingSchedule.getSampFreq()*0.70))
+            if (generation >= 1)
             {
             	
             	//Getting recombination event list from both parents and concatenating them for recombinant

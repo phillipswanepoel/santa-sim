@@ -42,24 +42,14 @@ public class ClonalReplicator implements Replicator {
             boolean isDeletion = x instanceof Deletion;
             boolean isInsertion = x instanceof Insertion;
 
-            if (isDeletion || isInsertion) {
-                System.out.println("*");
-                System.out.println(virus.getGenome().getSequence().getIndelList());
-                System.out.println("");
-                    
+            if (isDeletion || isInsertion) {             
                 pos = x.getPosition();
                 size = x.length();  
 
                 List<Integer> indels = new ArrayList<Integer>();
                 indels.add(pos);
                 indels.add(size);
-                virus.getGenome().getSequence().addIndelEvent(indels);
-
-                System.out.println("**");
-                System.out.println(virus.getGenome().getSequence().getIndelList());
-                System.out.println("");
-                System.out.println(virus.getGenome().getLength());
-
+                virus.getGenome().getSequence().addIndelEvent(indels);              
             }               
         }
 

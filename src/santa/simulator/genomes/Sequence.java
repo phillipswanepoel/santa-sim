@@ -7,6 +7,7 @@
 package santa.simulator.genomes;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.SortedSet;
 import java.util.List;
 import java.util.ArrayList;
@@ -88,5 +89,5 @@ public interface Sequence {
 
     void addIndelEvent(List<Integer> indelEvent);
 
-    void removeIndelEvent(List<Integer> indelEvent);
+    void removeIndelEvent(List<Integer> indelEvent);	
 }

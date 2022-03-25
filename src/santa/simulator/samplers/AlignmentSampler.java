@@ -258,12 +258,12 @@ public class AlignmentSampler implements Sampler {
     }
 
     //adds size gaps to string starting at position pos
-    private String addGaps(String s, int pos, int size) {
+    private String addGaps(String s, int pos, int size) {    
         String gapChars = "-".repeat(size);
         s = s.substring(0, pos) + gapChars + s.substring(pos, s.length());
+   
         return s;
     }
-
     
     //the idea is have a collection of insert_events
     //these will be then done in reverse order positionally (from end of sequence to beginning)
@@ -312,7 +312,6 @@ public class AlignmentSampler implements Sampler {
     }
 
     
-
     //calculates the final position of insert, once all remaining insertions and deletions have happened
     private int calc_insert_pos(List<List<Integer>> indels, int insert_index) {
 
@@ -333,42 +332,63 @@ public class AlignmentSampler implements Sampler {
     }
 
     private List<Insert_Event> insertion_events = new ArrayList<>();
-    private Set<List<Integer>> seenInsertions = new HashSet<List<Integer>>();
-    private HashMap<List<Integer>, Insert_Event> insertion_map = new HashMap<List<Integer>, Insert_Event>();    
+    private Set<Integer> seenInsertions = new HashSet<Integer>();
+    private HashMap<Integer, Insert_Event> insertion_map = new HashMap<Integer, Insert_Event>();    
 
     //returns string with gap characters added and insertions removed
-    private String remove_indels(String s, List<List<Integer>> indels, int virus_index) {
-
-        int counter = 0;
-
+    private String remove_indels(String s, List<List<Integer>> indels, int virus_index) {   
+    	
         for (List<Integer> indel : indels) {
             String subseq = "";
+            
+            int ini_size = s.length();
+            int sizy = indel.get(1);
 
             if (indel.get(1) < 0) {
+            	
+            	if (indel.get(0) > s.length()) {            		
+            		System.out.println("deletion out of bounds: ");
+            		System.out.println(indel);
+            		System.out.println(s.length());
+            	}
+            	
                 s = addGaps(s, indel.get(0), -indel.get(1));
             }
             else {
+            	
+            	if (indel.get(0) >= s.length()) {            		
+            		System.out.println("insertion out of bounds: ");
+            		System.out.println(indel);
+            		System.out.println(s.length());
+            	}
+            	
                 subseq = s.substring(indel.get(0), indel.get(0)+indel.get(1));
                 s = s.substring(0, indel.get(0)) + s.substring(indel.get(0)+indel.get(1), s.length());
+              
+                int indel_id = indel.get(3);
 
-                //if insertion in seenInsertions, just add this virus index to relevant class
-                //else create new insert_event
-                List<Integer> mod_indel = new ArrayList<Integer>(indel);
-                mod_indel.set(0, mod_indel.get(0) + mod_indel.get(2));
-                mod_indel.remove(2);
-
-                if (seenInsertions.contains(mod_indel)) {
-                    insertion_map.get(mod_indel).add_virus(virus_index);
+                if (seenInsertions.contains(indel_id)) {
+                    insertion_map.get(indel_id).add_virus(virus_index);
                 }
                 else {
-                    seenInsertions.add(mod_indel);                   
-                    insertion_map.put(mod_indel,  new Insert_Event(indel.get(0), indel.get(1), indel.get(2), virus_index, subseq));
+                    seenInsertions.add(indel_id);                   
+                    //insertion_map.put(mod_indel,  new Insert_Event(indel.get(0), indel.get(1), indel.get(2), virus_index, subseq));
+                    insertion_map.put(indel_id,  new Insert_Event(indel.get(0), indel.get(1), indel.get(2), virus_index, subseq));
                 }
 
             }
-            counter++;
+            
+            int final_size = s.length();
+            
+            if (final_size != ini_size - sizy) {
+            	System.out.println("POESOP");
+            	System.out.println(ini_size);
+            	System.out.println(sizy);
+            	System.out.println(final_size);
+            	
+            }            
         }
-
+        
         return s;
     }
  
@@ -376,46 +396,87 @@ public class AlignmentSampler implements Sampler {
     private List<String> add_insertions(List<String> genomeStringsList) {
 
         List<String> inserted_strings = new ArrayList<String>(genomeStringsList);
-        Set<List<Integer>> keys = insertion_map.keySet();
+        Set<Integer> keys = insertion_map.keySet();       
+        List<List<Integer>> cum_changes = new ArrayList<List<Integer>>();       
+        
+        HashMap<Integer, List<List<Integer>>> gaps_added = new HashMap<Integer, List<List<Integer>>>();  
 
-        for (List<Integer> key : keys) {
+        for (Integer key : keys) {
             //System.out.println(key);
             //System.out.println(insertion_map.get(key).getSubseq());
             //System.out.println(insertion_map.get(key).getViruses());
             //System.out.println("");
-
+        	
             Insert_Event temp = insertion_map.get(key);
 
             List<Integer> indel = new ArrayList<Integer>(temp.getIns());
             int pos = indel.get(0);
-            int size = indel.get(1);
-            int translation = indel.get(2);
+            int size = indel.get(1);           
             String subseq = temp.getSubseq();
-            Set<Integer> affected = temp.getViruses();
+            Set<Integer> affected = temp.getViruses();   
 
             for (int p = 0; p < inserted_strings.size(); p++) {
-
+            	//THIS LOOP ALMOST CERTAINLY SOURCE OF SOME ISSUES
+            	//HOW CAN YOU USE THE SAME TRANSLATION FOR ALL (WHEN RECOMBINATION IS A THING)
+            	//rather than using temp from insertion_map, need to get pos+trans from original stringlist
+            	int cum = 0;
+            	
+            	for (List<Integer> indy : cum_changes) {
+            		int temp_pos = indy.get(0);
+            		int temp_size = indy.get(1);
+            		
+            		if (temp_pos < pos) {
+            			cum = cum + temp_size;
+            		}
+            	}
                 if (affected.contains(p)) {
+                	
                     String old_string = inserted_strings.get(p); 
-                    String new_string = old_string.substring(0, pos-translation) + subseq + old_string.substring(pos-translation, old_string.length());
+                    String new_string = old_string.substring(0, pos + cum) + subseq + old_string.substring(pos + cum, old_string.length());
 
                     inserted_strings.set(p, new_string);
-
+                    
                 }
-                else {
+                else {     
                     String old_string = inserted_strings.get(p);
-                    String new_string = addGaps(old_string, pos-translation, size);
+                    
+                    if (pos- + cum > old_string.length()) { 
+                    	System.out.println(pos+ cum);
+                		System.out.println(pos);                		
+                		System.out.println(cum); 
+                		System.out.println("");   
+                	}
+                    
+                    String new_string = addGaps(old_string, pos + cum, size);
 
                     inserted_strings.set(p, new_string);
                 }
-            }          
+            }     
+            
+            cum_changes.add(indel);
 
         }
 
         return inserted_strings;
     }
-
-
+    
+    static class LengthComparator2 implements Comparator<List<Integer>> {
+        public int compare(final List<Integer> list1, final List<Integer> list2) {        
+            if (list1.get(0) == list2.get(0)) {
+                return Integer.compare(list1.get(0), list2.get(0));
+            }
+            else {
+                return Integer.compare(list1.get(0), list2.get(0));
+            }        
+        }
+    }
+    
+    static List<List<Integer>> sortIndelsByPosition(List<List<Integer>> insertions) {
+        List<List<Integer>> withoutOverlaps = insertions;      
+        Collections.sort(withoutOverlaps, new LengthComparator2());
+        return withoutOverlaps;
+    }
+    
     private void writeFastaFormat(int generation, Virus[] sample) {
         Set<Integer> seenEvents = new HashSet<Integer>();
         List<String> genomeStringsList = new ArrayList<String>();  
@@ -429,13 +490,7 @@ public class AlignmentSampler implements Sampler {
             destination.println(">" + l);
             destination.println(computeConsensus(sample));
         } else {
-            int i = 1;
-
-            //adding indel events to set
-            Set<List<Integer>> seenInsertions = new HashSet<List<Integer>>();
-            HashMap<Integer, ArrayList<List<Integer>>> toRemove = new HashMap<Integer, ArrayList<List<Integer>>>();
-            HashMap<Integer, ArrayList<List<Integer>>> toAdd = new HashMap<Integer, ArrayList<List<Integer>>>();   
-
+            int i = 1;   
             
             List<String> nameList = new ArrayList<String>();
 
@@ -458,7 +513,11 @@ public class AlignmentSampler implements Sampler {
 
                 String genomeString = virus.getGenome().getSequence().getNucleotides();
                                
-                List<List<Integer>> indelsList = new ArrayList<List<Integer>>(virus.getGenome().getSequence().getIndelList());
+                List<List<Integer>> indelsList = new ArrayList<List<Integer>>(virus.getGenome().getSequence().getIndelList());                
+                indelsList = sortIndelsByPosition(indelsList);
+                System.out.println("> " + i);
+                System.out.println(indelsList);    
+                System.out.println("");           
 
                 //System.out.println("GENOME: " + Integer.toString(counter+1)); 
                 //System.out.println(indelsList);              
@@ -478,8 +537,17 @@ public class AlignmentSampler implements Sampler {
 
                 counter++;
                 i++;
+            }              
+            
+            int temp_i = genomeStringsList.get(0).length();
+            for (String k : genomeStringsList) {   
+            	
+            	if (k.length() != temp_i) {
+            		System.out.println("OH POESA, all strings not equal length after removing indels!");
+            	}
+            	temp_i = k.length();    
             }
-
+              
             finalStringsList = new ArrayList<String>(add_insertions(genomeStringsList));
 
             int ini_len = finalStringsList.get(0).length();
@@ -528,7 +596,7 @@ public class AlignmentSampler implements Sampler {
         try {
 
             //System.out.println("LENGTH: ");
-            endLength = finalStringsList.get(0).replace("-", "").length();
+            endLength = finalStringsList.get(0).length();
             //System.out.println(endLength);
 
             PrintStream recombPrinter = new PrintStream("recombination_events.txt");

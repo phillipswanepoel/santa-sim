@@ -12,6 +12,9 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -32,6 +35,7 @@ public final class SimpleSequence implements Sequence {
 	private byte states[];
 	
 	private List<List<Integer>> indelList = new ArrayList<>();
+	
 	/**
 	 * Create a new sequence with given nucleotide length. The new sequence
 	 * is initialized to all A's.
@@ -176,21 +180,110 @@ public final class SimpleSequence implements Sequence {
 
 	private int countChanges(int pos) {
 		int cumChanges = 0;
-
-		List<List<Integer>> reversedIndels = new ArrayList<List<Integer>>(this.indelList);
-		Collections.reverse(reversedIndels);
-
 		int tempPos = pos;
 
 		for (List<Integer> indels : this.indelList) {
 
-			if (indels.get(0) < tempPos) {
+			if (indels.get(0) <= tempPos) {
 				cumChanges = cumChanges + indels.get(1);
 				tempPos = tempPos - indels.get(1);
 			}
 		}
 
 		return cumChanges;
+	}
+	
+	private List<List<Integer>> updateIndels(List<List<Integer>> indels, int pos, int size) {
+		List<List<Integer>> updated = new ArrayList<List<Integer>>(); 
+		
+		for (List<Integer> indel: indels) {
+			int old_pos = indel.get(0);
+			if (pos <= old_pos) {
+				List<Integer> newIndel = new ArrayList<Integer>();					
+				newIndel.add(old_pos + size);
+				newIndel.add(indel.get(1));
+				newIndel.add(indel.get(2));
+				newIndel.add(indel.get(3));
+				
+				updated.add(newIndel);
+			}	
+			else {
+				updated.add(indel);
+			}
+		}
+		
+		return updated;
+	}
+	
+	static List<List<Integer>> mergeOverlaps(List<List<Integer>> indels) {
+		List<List<Integer>> merged = new ArrayList<List<Integer>>(indels); 
+		boolean done = false;
+		//if indel A goes from 1->3, aka A = [1, 3]
+		//then for indel B to have a seamless overlap, needs to be:
+		//B = [1, X], [2, X], [3, X] or [4, X]
+		//aka if indel A = [X, Y] B = [ (X,X+1,X+2,..,X+Y+1), Z]	
+		while (!done) {
+			int i_counter = 0;
+			int j_counter = 0;
+			boolean modified = false;
+			outerloop:			
+			for (int i = 0; i < merged.size()-1; i++) {
+				i_counter = i;
+				for (int j = i+1; j < merged.size(); j++) {
+					j_counter = j;
+					List<Integer> indelA = merged.get(i);
+					List<Integer> indelB = merged.get(j);
+					
+					int posA = indelA.get(0);
+					int sizeA = Math.abs(indelA.get(1));
+					int idA = indelA.get(3);
+					//int signA = (int) Math.signum(indelA.get(1));	
+					
+					int posB = indelB.get(0);
+					int sizeB = Math.abs(indelB.get(1));
+					int idB = indelB.get(3);
+					//int signB = (int) Math.signum(indelB.get(1));		
+					
+					if (posB >= posA && posB <= posA+sizeA) {
+						//there is an overlap, can merge
+						List<Integer> mergedIndel = new ArrayList<Integer>();					
+						mergedIndel.add(posA);
+						mergedIndel.add(sizeA + sizeB);
+						mergedIndel.add(indelA.get(2));
+						int modifier = (idA + idB)/2;
+						mergedIndel.add(modifier);
+						
+						merged.remove(i);
+						merged.remove(j-1);
+						merged.add(mergedIndel);								
+						
+						modified = true;
+						break outerloop;
+						
+					} else if (posA >= posB && posA <= posB+sizeB) {
+						List<Integer> mergedIndel = new ArrayList<Integer>();					
+						mergedIndel.add(posB);
+						mergedIndel.add(sizeB + sizeA);
+						mergedIndel.add(indelB.get(2));
+						int modifier = (idB + idB)/2;
+						mergedIndel.add(modifier);
+						
+						merged.remove(i);
+						merged.remove(j-1);
+						merged.add(mergedIndel);						
+						
+						modified = true;
+						break outerloop;
+					} 
+				}			
+			}		
+			if (i_counter >= merged.size()-2 &&  j_counter >= merged.size()-1) {
+				done = true;
+			}						
+		}
+		
+		
+		return merged;
 	}
 	
 	public boolean deleteSubSequence(int pos, int count) {
@@ -208,11 +301,17 @@ public final class SimpleSequence implements Sequence {
 		indel.add(pos);
 		indel.add(-count);
 		indel.add(countChanges(pos));
+		
+		//adding unique identifier to indel event
+		IndelCounter indelcount = IndelCounter.INSTANCE.getInstance();
+		indelcount.addCount();		
+		indel.add(indelcount.getCount());
 
-		this.indelList.add(indel);
-
+		this.indelList.add(indel);			
+		
 		return(true);
 	}
+	
 	
 	public boolean insertSequence(int start, SimpleSequence source) {
 		// allocate more space and copy the old contents
@@ -226,12 +325,22 @@ public final class SimpleSequence implements Sequence {
 		states = newstates;
 		// assert (states.length % 3) == 0;
 		List<Integer> indel = new ArrayList<Integer>();	
-		indel.add(start);
-		indel.add(source.getLength());
+		int pos = start;
+		int size = (source.getLength());			
+		this.indelList = updateIndels(this.indelList, pos, size);	
+		
+		indel.add(pos);
+		indel.add(size);
 		indel.add(countChanges(start));
-
-		this.indelList.add(indel);	
-
+		
+		//adding unique identifier to indel event
+		IndelCounter indelcount = IndelCounter.INSTANCE.getInstance();
+		indelcount.addCount();		
+		indel.add(indelcount.getCount());
+		
+		this.indelList.add(indel);				
+		this.indelList = mergeOverlaps(this.indelList);	
+		
 		return(true);
 	}
 
@@ -375,7 +484,18 @@ public final class SimpleSequence implements Sequence {
 
 	//class used to sort indel events by position first, then size
 	//Sorts in ascending order
-	class LengthComparator implements Comparator<List<Integer>> {
+	static class LengthComparator implements Comparator<List<Integer>> {
+        public int compare(final List<Integer> list1, final List<Integer> list2) {        
+            if (list1.get(3) == list2.get(3)) {
+                return Integer.compare(list1.get(3), list2.get(3));
+            }
+            else {
+                return Integer.compare(list1.get(3), list2.get(3));
+            }        
+        }
+    }
+	
+	static class LengthComparator2 implements Comparator<List<Integer>> {
         public int compare(final List<Integer> list1, final List<Integer> list2) {        
             if (list1.get(0) == list2.get(0)) {
                 return Integer.compare(list1.get(0), list2.get(0));
@@ -386,276 +506,403 @@ public final class SimpleSequence implements Sequence {
         }
     }
 
-    public List<List<Integer>> sortIndels(List<List<Integer>> insertions) {
+    static List<List<Integer>> sortIndels(List<List<Integer>> insertions) {
         List<List<Integer>> withoutOverlaps = insertions;      
         Collections.sort(withoutOverlaps, new LengthComparator());
+        return withoutOverlaps;
+    }
+    
+    static List<List<Integer>> sortIndelsByPosition(List<List<Integer>> insertions) {
+        List<List<Integer>> withoutOverlaps = insertions;      
+        Collections.sort(withoutOverlaps, new LengthComparator2());
         return withoutOverlaps;
     }
 
     //returns an updated indelList, which is created by combining the lists from both parents in a "special" way
     //the merger ensures events can still be "unpacked" in reverse order without disrupting the coordinate system
-
-	static List<List<Integer>> getNewIndelList(SimpleSequence[] parents, SortedSet<Integer> breakPoints) {
-
-		List<List<Integer>> indels1 = new ArrayList<List<Integer>>(parents[0].getIndelList());
+    /*
+    static List<List<Integer>> getNewIndelList(SimpleSequence[] parents, SortedSet<Integer> breakPoints) {
+    	List<List<Integer>> indels1 = new ArrayList<List<Integer>>(parents[0].getIndelList());
 		List<List<Integer>> indels2 = new ArrayList<List<Integer>>(parents[1].getIndelList());
-		List<List<Integer>> updated_indels1 = new ArrayList<List<Integer>>();
-		List<List<Integer>> updated_indels2 = new ArrayList<List<Integer>>();
-
-		List<List<Integer>> recombinant_indel_list = new ArrayList<List<Integer>>();
-
-		//System.out.println("NEW INDEL LIST BEING CREATED: ");
-		//System.out.println(breakPoints);
-		//System.out.println(indels1);
-		//System.out.println(indels2);
-		//System.out.println("");		
+		List<List<Integer>> final_list = new ArrayList<List<Integer>>();
 		
-		if (indels1.size() == 0 && indels2.size() == 0) {
-			//System.out.println("-------------------------------------");
+		return final_list;
+    }
+    */
+    
+    static List<List<Integer>> selectIndels(List<List<Integer>> oldList, List<List<Integer>> currentList, int start, int end, int shift_diff) {    	
+    	List<List<Integer>> selectedIndels = new ArrayList<>();
+    	
+    	if (currentList.size() > 0) {
+    		int counter = 0;
+
+			List<Integer> startIndel = new ArrayList<Integer>(currentList.get(0));
+
+			while (counter < currentList.size()) {
+				
+				startIndel = currentList.get(counter);					
+				int old_pos = oldList.get(counter).get(0);				
+				int updated_pos = startIndel.get(0);
+				int size = Math.abs(startIndel.get(1));
+				int sign = (int) Math.signum(startIndel.get(1));
+				int unique_id = startIndel.get(3);
+				
+				if (start <= updated_pos && (updated_pos + size) <= end) {
+					//Indel cleanly within block
+					List<Integer> newIndel = new ArrayList<Integer>();
+					newIndel.add(updated_pos - shift_diff);
+					newIndel.add(size*sign);
+					newIndel.add(startIndel.get(2) - shift_diff);					
+					newIndel.add(unique_id);		
+					
+					selectedIndels.add(newIndel);
+
+				} else if ( ((start <= updated_pos) && (updated_pos < end)) && ((updated_pos + size) > end) ) {
+					//Indel divided by end breakpoint						
+					List<Integer> dividedIndel = new ArrayList<Integer>();
+					int new_size = (end - updated_pos);				
+					dividedIndel.add(updated_pos - shift_diff);
+					dividedIndel.add(new_size*sign);
+					dividedIndel.add(startIndel.get(2) - shift_diff);
+					dividedIndel.add(unique_id);	
+					/*
+					if (shift_diff != 0) {
+						//if size has been changed, we need to treat this as if it is a new indel
+						IndelCounter indelcount = IndelCounter.INSTANCE.getInstance();
+						indelcount.addCount();		
+						unique_id = indelcount.getCount();	
+					}
+					*/
+					selectedIndels.add(dividedIndel);
+
+				} else if ( (updated_pos < start) && ((updated_pos + size) > start) && ((updated_pos + size) <= end)) {
+					//Indel divided by starting breakpoint						
+					List<Integer> dividedIndel = new ArrayList<Integer>();
+					//dividedIndel.add(old_pos + (updated_pos - start));
+					dividedIndel.add(start);
+					dividedIndel.add((updated_pos + size - start)*sign);
+					dividedIndel.add(startIndel.get(2) - shift_diff);
+					dividedIndel.add(unique_id);
+					/*
+					if (shift_diff != 0) {
+						//if size has been changed, we need to treat this as if it is a new indel
+						IndelCounter indelcount = IndelCounter.INSTANCE.getInstance();
+						indelcount.addCount();		
+						unique_id = indelcount.getCount();	
+					}
+					*/
+					selectedIndels.add(dividedIndel);
+				} 
+
+				counter++;							
+			}
+
+		}
+    	
+    	return selectedIndels;
+    }
+	
+	static List<List<Integer>> updatePositions(List<List<Integer>> indels) {
+		//updates positions and translations so that they are accurate for current time, not time of specific indel event
+		//updated = positions are updated to time of recombination		
+		List<List<Integer>> updated_List = new ArrayList<List<Integer>>(); 
+		
+		if (indels.size() >= 2) {
+
+			for (int i = 0; i < indels.size()-1; i++) {
+				List<Integer> baseIndel = new ArrayList<Integer>(indels.get(i));
+				int base_pos = baseIndel.get(0);
+				int newTranslation = 0;
+
+				for (int j = i + 1; j < indels.size(); j++) {
+					List<Integer> newerIndel = new ArrayList<Integer>(indels.get(j));
+
+					//newer indel lies before base indel, and thus base indel's position is changed at time of recombination
+					if (newerIndel.get(0) <= base_pos) {
+						//adding size of indel
+						int size = newerIndel.get(1);
+						newTranslation = newTranslation + size;
+						//base_pos = base_pos + size;
+					}
+				}
+
+				List<Integer> updated_indel = new ArrayList<Integer>();
+				//Calculating new position and translation
+				//New translation such that position+translation is equal for old and new indel		
+				
+				updated_indel.add(baseIndel.get(0) + newTranslation);
+				updated_indel.add(baseIndel.get(1));
+				updated_indel.add(baseIndel.get(2) + newTranslation);
+				updated_indel.add(baseIndel.get(3));
+
+				updated_List.add(updated_indel);
+				newTranslation = 0;
+			}
+
+			//adding final event
+			List<Integer> finalIndel = new ArrayList<Integer>(indels.get(indels.size()-1));			
+			updated_List.add(finalIndel);			
+		
+
+		} else if (indels.size() == 1) {
+			updated_List.add(indels.get(0));			
+		}		
+		
+		return updated_List;
+		
+	}
+	
+	static int calcFrameShift(int pos, List<List<Integer>> sorted_indels, boolean hard) {
+		int frameshift = 0;
+		int bp_pos = pos;	
+		
+		for (List<Integer> indel: sorted_indels) {	
+			int updated_pos = indel.get(0);
+			int sign = (int) Math.signum(indel.get(1));
+			int size = Math.abs(indel.get(1));		
+			
+			if (updated_pos < bp_pos && updated_pos >= 0) {
+				if (updated_pos + size >= bp_pos) {	
+					if (hard) {
+						frameshift = frameshift + ((size)*sign);
+						//frameshift = frameshift + (bp_pos - updated_pos)*sign;						
+						bp_pos = bp_pos + (size)*sign;
+					}
+					else {
+						frameshift = frameshift + (bp_pos - updated_pos)*sign;
+						//frameshift = frameshift + ((size)*sign);
+						//bp_pos = bp_pos + (size)*sign;
+					}					
+				} else {
+					if (hard) {
+						frameshift = frameshift + (size)*sign;
+						bp_pos = bp_pos + (size)*sign;
+					}
+					else {
+						frameshift = frameshift + (size)*sign;
+						//bp_pos = bp_pos + (size)*sign;
+					}
+					
+					//bp_pos = bp_pos + (size)*sign;
+				}					
+			}	
+		}	
+		
+		return frameshift;
+	}
+	
+	//calcShiftDiff(bp, indels1, indels2, updatedIndels1, updatedIndels2)
+	static int calcHomoBreakPoint(int pos, List<List<Integer>> indels1_sorted, List<List<Integer>> indels2_sorted) {
+		//calculates difference in frameshift between two sequences (caused by indels) up to a certain nucleotide position	
+		System.out.println("---------------------------------------");		
+		System.out.println(indels1_sorted);
+		System.out.println(indels2_sorted);	
+		
+		int frameshift1 = calcFrameShift(pos, indels1_sorted, false);
+		int frameshift2 = calcFrameShift(Math.max(pos - frameshift1, 0), indels2_sorted, true);		
+				
+		return pos + frameshift2 - frameshift1;
+	}
+	
+	
+	static private class indelCollection {
+		private List<List<Integer>> indels1;
+		private List<List<Integer>> indels2;
+		private List<List<Integer>> updatedIndels1;
+		private List<List<Integer>> updatedIndels2;
+		private List<List<Integer>> sortedIndels1;
+		private List<List<Integer>> sortedIndels2;
+		private List<Integer> breakPointsList;
+		private List<Integer> homologousBreakPointsList;
+		int[] parentLengths;
+		
+		public indelCollection(List<List<Integer>> parent1indels, List<List<Integer>> parent2indels, SortedSet<Integer> breakPoints, int[] parentLengths) {	
+			this.indels1 = new ArrayList<List<Integer>>(parent1indels);		
+			this.indels2 = new ArrayList<List<Integer>>(parent2indels);	
+			//this.updatedIndels1 =  new ArrayList<List<Integer>>(updatePositions(indels1));
+			//this.updatedIndels2 =  new ArrayList<List<Integer>>(updatePositions(indels2));	
+			this.updatedIndels1 = new ArrayList<List<Integer>>((indels1));
+			this.updatedIndels2 = new ArrayList<List<Integer>>((indels2));			
+		
+			this.sortedIndels1 = sortUpdated(this.updatedIndels1);
+			this.sortedIndels2 = sortUpdated(this.updatedIndels2);
+		
+			this.breakPointsList = new ArrayList<Integer>(breakPoints);
+			this.parentLengths = parentLengths;
+		}			
+	
+		public List<List<Integer>> getIndels1() {
 			return indels1;
 		}
-		//generating updated lists for both parents
-		//updated = positions are updated to time of recombination
-		List<List<Integer>> currentList;
-		List<List<Integer>> updated_currentList;
-		for (int h = 0; h < 2; h++) {
-
-			if (h==0) {
-				currentList = indels1;
-				updated_currentList = updated_indels1;
-			}
-			else {
-				currentList = indels2;
-				updated_currentList = updated_indels2;
-			}
-
-			if (currentList.size() >= 2) {
-
-				for (int i = 0; i < currentList.size()-1; i++) {
-					List<Integer> baseIndel = new ArrayList<Integer>(currentList.get(i));
-					int newTranslation = 0;
-
-					for (int j = i + 1; j < currentList.size(); j++) {
-						List<Integer> newerIndel = new ArrayList<Integer>(currentList.get(j));
-
-						//newer indel lies before base indel, and thus base indel's position is changed at time of recombination
-						if (newerIndel.get(0)-newerIndel.get(2) < baseIndel.get(0)-baseIndel.get(2)) {
-							//adding size of indel
-							newTranslation = newTranslation + newerIndel.get(1);
-						}
-
-					}
-
-					List<Integer> updated_indel = new ArrayList<Integer>();
-					//Calculating new position and translation
-					//New translation such that position+translation is equal for old and new indel
-
-					//*NOTE!!!: should this be +newTranslation or -newTranslation???
-					int newpos = baseIndel.get(0)+newTranslation;
-					updated_indel.add(newpos);					
-					updated_indel.add(baseIndel.get(1));
-					updated_indel.add(baseIndel.get(2)-newTranslation);
-
-					updated_currentList.add(updated_indel);
-					newTranslation = 0;
-				}
-
-				//adding final event
-				List<Integer> finalIndel = new ArrayList<Integer>(currentList.get(currentList.size()-1));
-				updated_currentList.add(finalIndel);
-
-			} else if (currentList.size() == 1) {
-				updated_currentList.add(currentList.get(0));
-			}
-
+		public List<List<Integer>> getIndels2() {
+			return indels1;
 		}
-
-		//Now sort both updated indel lists
-		updated_indels1 = new SimpleSequence().sortIndels(updated_indels1);
-		updated_indels2 = new SimpleSequence().sortIndels(updated_indels2);
-		//recombinant_indel_list
-		//System.out.println(updated_indels1);
-		//System.out.println(updated_indels2);
-		//System.out.println("");
-
-		int currentStart = 0;
-		int currentEnd = 0;
-		boolean whichList = true;
-
-		//Now use the updated lists to merge them according to breakpoints
-		//Need to add consideration for end of sequence as breakpoint
-		SortedSet<Integer> breakPoints_with_end = new TreeSet<Integer>(breakPoints);
-		if (breakPoints_with_end.size() == 1 ) {
-
-			breakPoints_with_end.add(parents[1].getLength());
-		} else {
-			breakPoints_with_end.add(parents[1].getLength());
-			//breakPoints_with_end.add(parents[0].getLength());
+		public List<List<Integer>> getUpdatedIndels1() {
+			return updatedIndels1;
+		}
+		public List<List<Integer>> getUpdatedIndels2() {
+			return updatedIndels2;
+		}
+		public List<Integer> getBreakPoints() {
+			return breakPointsList;
 		}
 		
-		//Looping through breakpoints and adding indels that fall between consecutive ones
-		//Also compare the accumulated frameshifts between the two sequences. If different, they will be misaligned after breakpoint.
-		//Thus need to add an indel event to compensate.
-
-		//Comparing frameshifts between breakpoints and adding indel to adjust for it.	
-		int startp = 0;
-		int endp = 0;
-		int c = 0;	
-
-		//int[] frameShift = new int[]{0,0};
-		int[] frameShift = new int[]{0,0};			
-	
-		for (int bpoint: breakPoints) {
-
-			//int temp1 = frameShift[c];
-			//int temp2 = frameShift[1-c];		
-			//frameShift[c] = temp2;
-			//frameShift[1-c] = temp1;
+		private List<List<Integer>> sortUpdated(List<List<Integer>> indels) {
+			List<List<Integer>> sorted_indels = new ArrayList<List<Integer>>(indels); 		
+			sorted_indels = sortIndelsByPosition(sorted_indels);
 			
-			endp = bpoint;
-
-			for (List<Integer> indel1: updated_indels1) {				
-				if (indel1.get(0) < endp && indel1.get(0) >= startp) {
-					if (indel1.get(0) + indel1.get(1) >= endp) {						
-						int sign1 = (int) Math.signum(indel1.get(1));
-						frameShift[0] = frameShift[0] + ((endp - indel1.get(0))*sign1);
-					} else {
-						frameShift[0] = frameShift[0] + indel1.get(1);
+			return sorted_indels;
+		}
+		
+		private int refineBP(int bp, int homobp) {
+			//need to be smarter about how indels are dealth with that go across the breakpoint
+			//if this indel is shared between both parents, need to make homo breakpoint such that it is preserved
+			int refined_bp = homobp;	
+			int nucleotides_inherited = 0;			
+			int pos = -1;
+			int og_size = 0;
+			for (List<Integer> indel : updatedIndels1) {
+				int updated_pos = indel.get(0);
+				int sign = (int) Math.signum(indel.get(1));
+				int size = Math.abs(indel.get(1));	
+				
+				if (updated_pos < bp && updated_pos+size >= bp && sign > 0) {					
+					nucleotides_inherited = (bp - updated_pos);
+					og_size = size*sign;
+					pos = updated_pos;
+				}
+			}
+			//Now check if this indel is shared with other parent:
+			for (List<Integer> indel : updatedIndels2) {
+				int updated_pos = indel.get(0);						
+				int size = Math.abs(indel.get(1));
+				int sign = (int) Math.signum(indel.get(1));
+				if (updated_pos == pos || pos != -1 && updated_pos <= homobp && updated_pos+size > homobp && sign > 0) {
+					//we have a match, update homobp accordingly
+					if (nucleotides_inherited <= updated_pos+size-homobp) {
+						refined_bp = refined_bp + nucleotides_inherited;
 					}					
 				}
 			}
-			for (List<Integer> indel2: updated_indels2) {
-				if (indel2.get(0) < endp && indel2.get(0) >= startp) {
-					if (indel2.get(0) + indel2.get(1) >= endp) {						
-						int sign2 = (int) Math.signum(indel2.get(1));					
-						frameShift[1] = frameShift[1] + ((endp - indel2.get(0))*sign2);
-					} else {
-						frameShift[1] = frameShift[1] + indel2.get(1);
-					}					
-				}				
-			}
-
-			int shift_diff = frameShift[1-c] - frameShift[c];			
-
-			//System.out.println(shift_diff);
-
-			if (shift_diff > 0) {
-				List<Integer> shiftIndel = new ArrayList<Integer>();
-				//shiftIndel.add(bpoint);
-				shiftIndel.add(bpoint-shift_diff);
-				shiftIndel.add(shift_diff);
-				shiftIndel.add(frameShift[c]);
-				recombinant_indel_list.add(shiftIndel);		
-			} else if (shift_diff < 0) {
-				List<Integer> shiftIndel = new ArrayList<Integer>();
-				shiftIndel.add(bpoint);
-				shiftIndel.add(shift_diff);
-				shiftIndel.add(frameShift[c]);
-				recombinant_indel_list.add(shiftIndel);
-			}
-
-			c = 1-c;
-			startp = endp;			
-		}		
+			
+			return refined_bp;
+		}
 		
-
-		//Looping through breakpoints and adding indels that fall between consecutive ones,		
-		for (int bp : breakPoints_with_end) {
-			currentEnd = bp;
-			int counter = 0;	
-
-			//swapping between parental sequences 
-			if (whichList) {
-				currentList = updated_indels1;
-			}
-			else {
-				currentList = updated_indels2;
-			}
-
-			if (currentList.size() > 0) {
-
-				List<Integer> startIndel = new ArrayList<Integer>(currentList.get(0));
-
-				while (startIndel.get(0) < currentEnd && counter < currentList.size()) {
-					startIndel = currentList.get(counter);					
-					int pos = startIndel.get(0);
-					int size = Math.abs(startIndel.get(1));
-					int sign = (int) Math.signum(startIndel.get(1));
-					
-					if (currentStart <= pos && (pos + size) < currentEnd) {
-						//Indel cleanly within block
-						recombinant_indel_list.add(startIndel);
-
-					} else if ( ((currentStart <= pos) && (pos < currentEnd)) && ((pos + size) >= currentEnd) ) {
-						//Indel divided by end breakpoint						
-						List<Integer> dividedIndel = new ArrayList<Integer>();
-						dividedIndel.add(pos);
-						dividedIndel.add((currentEnd - pos)*sign);
-						dividedIndel.add(startIndel.get(2));
-
-						recombinant_indel_list.add(dividedIndel);
-
-					} else if ( (pos < currentStart) && ((pos + size) > currentStart) && ((pos + size) < currentEnd)) {
-						//Indel divided by starting breakpoint						
-						List<Integer> dividedIndel = new ArrayList<Integer>();
-						dividedIndel.add(currentStart);
-						dividedIndel.add((pos + size - currentStart)*sign);
-						dividedIndel.add(startIndel.get(2));
-
-						recombinant_indel_list.add(dividedIndel);
-
-					} else {
-
-					}
-
-					counter++;							
+		public List<Integer> getHomologousBreakPoints() {
+			List<Integer> homologousBreakPoints = new ArrayList<Integer>();
+			
+			for (int bp :breakPointsList) {
+				
+				int homo_bp = calcHomoBreakPoint(bp, sortedIndels1, sortedIndels2);				
+				homo_bp = refineBP(bp, homo_bp);				
+				homo_bp = Math.min(homo_bp, this.parentLengths[1]);		
+				if (homo_bp < 0) {
+					homo_bp = 0;
 				}
-
-			}	
-
-			whichList = !whichList;
-			currentStart = bp;
-		}		
+				System.out.println("Refined homo bp: " + (homo_bp));
+				homologousBreakPoints.add(homo_bp);				
+			}		
+			
+			this.homologousBreakPointsList = homologousBreakPoints;
+			return homologousBreakPoints;
+		}
 		
-		//System.out.println("FINAL LIST: ");
-		//System.out.println(recombinant_indel_list);
+		public List<List<Integer>> getNewIndelList() {		
+			List<List<Integer>> updated_indels1 = new ArrayList<List<Integer>>(updatedIndels1);
+			List<List<Integer>> updated_indels2 =  new ArrayList<List<Integer>>(updatedIndels2);
+			//Now use the updated lists to merge them according to breakpoints
+			//Need to add consideration for end of sequence as breakpoint
+			List<Integer> breakPoints_with_end = new ArrayList<Integer>(breakPointsList);
+			List<Integer> homoBreakPoints_with_end = new ArrayList<Integer>(homologousBreakPointsList);
+			
+			int recombinant_len = parentLengths[1] - (homologousBreakPointsList.get(0) - breakPointsList.get(0));			
+			//Length of recombinant is as follows:
+			//parents are sorted such that parent1 < parent2
+			//if only 1 breakpoint, len == parent2
+			//if 2 breakpoints, len == parent1
+			if (breakPointsList.size() == 1) {
+				breakPoints_with_end.add(recombinant_len);
+				homoBreakPoints_with_end.add(recombinant_len);
+			} else {
+				breakPoints_with_end.add(this.parentLengths[0]);
+				homoBreakPoints_with_end.add(this.parentLengths[0]);
+			}				
+			//Looping through breakpoints and adding indels that fall between consecutive ones	
+			//selectIndels(List<List<Integer>> oldList, List<List<Integer>> currentList, int start, int end, int shift_diff)		
+			updated_indels1 =  selectIndels(indels1, updated_indels1, 0, breakPoints_with_end.get(0), 0);
+			updated_indels2 =  selectIndels(indels2, updated_indels2, homoBreakPoints_with_end.get(0),  parentLengths[1],  homoBreakPoints_with_end.get(0) - breakPoints_with_end.get(0));
+			
+			List<List<Integer>> merged_indels =  new ArrayList<List<Integer>>();	
+			merged_indels.addAll(updated_indels1);
+			merged_indels.addAll(updated_indels2);
+			
+			merged_indels = sortIndelsByPosition(merged_indels);
+			
+			return merged_indels;
 
-		recombinant_indel_list = new SimpleSequence().sortIndels(recombinant_indel_list);
-
-		//System.out.println(recombinant_indel_list);
-		//System.out.println("-------------------------------------");
-
-		return recombinant_indel_list;
-
+		}
+		
 	}
-
+	
 
     static SimpleSequence getRecombinantSequence(SimpleSequence[] parents, SortedSet<Integer> breakPoints) {
 	 	assert(parents.length == 2);
 		assert(parents[0].getLength() <= parents[1].getLength());
+				
+		List<List<Integer>> indels1 = new ArrayList<List<Integer>>(parents[0].getIndelList());
+		List<List<Integer>> indels2 = new ArrayList<List<Integer>>(parents[1].getIndelList());
+		indelCollection indels = new indelCollection(indels1, indels2, breakPoints, new int[]{parents[0].getLength(), parents[1].getLength()});
+		
+		List<Integer> listBreakPoints = new ArrayList<Integer>(indels.getBreakPoints());	
+		List<Integer> homologousBreakPoints = new ArrayList<Integer>(indels.getHomologousBreakPoints());
+		//List<Integer> homologousBreakPoints = 
+		//homologousBreakPoints = calcHomologousBreakpoints();
+		
+		int recombinant_len = parents[1].getLength() - (homologousBreakPoints.get(0) - listBreakPoints.get(0));
 
 		int lastBreakPoint = 0;		// previous recombination location
 		int currentSeq = 0;			// index of currently selected parent
-		int newlen = getRecombinantLength(parents, breakPoints);
-		SimpleSequence product = new SimpleSequence(newlen);
+		//int newlen = getRecombinantLength(parents, breakPoints);
+		SimpleSequence product = new SimpleSequence(recombinant_len);
 
 		byte[] dest = product.states;	// where to put the product
 		SimpleSequence seq = parents[currentSeq];
-		for (int nextBreakPoint : breakPoints) {
-			System.arraycopy(seq.states, lastBreakPoint, 
-							 dest, lastBreakPoint, nextBreakPoint-lastBreakPoint);
+		
+		String parent1 = parents[0].getNucleotides();
+		String parent2 = parents[1].getNucleotides();				
+	
+		System.out.println("Breakpoint = " + listBreakPoints.get(0));
+		System.out.println(parent1.substring(0, listBreakPoints.get(0)) + "|" + parent1.substring(listBreakPoints.get(0)));
+		System.out.println(parent2.substring(0, homologousBreakPoints.get(0)) + "|" + parent2.substring(homologousBreakPoints.get(0)));	
+		
+		int counter = 0;
+		for (int nextBreakPoint : breakPoints) {				
+			int homologousNextBreakPoint = homologousBreakPoints.get(counter);	
 			
-			lastBreakPoint = nextBreakPoint;
+			System.arraycopy(seq.states, lastBreakPoint, 
+							 dest, lastBreakPoint, nextBreakPoint-lastBreakPoint);			
+			
+			lastBreakPoint = homologousNextBreakPoint;
+			homologousBreakPoints.add(lastBreakPoint);
 			currentSeq = 1 - currentSeq;
-			seq = parents[currentSeq];
+			seq = parents[currentSeq];	
+			counter++;
 		}
-		int nextBreakPoint =  seq.getLength();
+		
+		
+		
 		System.arraycopy(seq.states, lastBreakPoint, 
-						 dest, lastBreakPoint, nextBreakPoint-lastBreakPoint);
-
-		List<List<Integer>> newIndels = new ArrayList<List<Integer>>(getNewIndelList(parents, breakPoints));
+						 dest, breakPoints.last(), parents[1].getLength()-lastBreakPoint);
+		
+		String recombinant = product.getNucleotides();		
+		System.out.println(recombinant.substring(0, breakPoints.last()) + "|" + recombinant.substring(breakPoints.last()));		
+		
+		List<List<Integer>> newIndels = indels.getNewIndelList();
 		product.setIndelList(newIndels);
-
+		
+		System.out.println("======");
+		System.out.println(newIndels);		
+		
 		return(product);
 	}
 
