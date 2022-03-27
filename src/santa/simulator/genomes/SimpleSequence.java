@@ -202,7 +202,7 @@ public final class SimpleSequence implements Sequence {
 				List<Integer> newIndel = new ArrayList<Integer>();					
 				newIndel.add(old_pos + size);
 				newIndel.add(indel.get(1));
-				newIndel.add(indel.get(2));
+				newIndel.add(indel.get(2) + size);
 				newIndel.add(indel.get(3));
 				
 				updated.add(newIndel);
@@ -694,10 +694,11 @@ public final class SimpleSequence implements Sequence {
 	//calcShiftDiff(bp, indels1, indels2, updatedIndels1, updatedIndels2)
 	static int calcHomoBreakPoint(int pos, List<List<Integer>> indels1_sorted, List<List<Integer>> indels2_sorted) {
 		//calculates difference in frameshift between two sequences (caused by indels) up to a certain nucleotide position	
+		/*
 		System.out.println("---------------------------------------");		
 		System.out.println(indels1_sorted);
 		System.out.println(indels2_sorted);	
-		
+		*/
 		int frameshift1 = calcFrameShift(pos, indels1_sorted, false);
 		int frameshift2 = calcFrameShift(Math.max(pos - frameshift1, 0), indels2_sorted, true);		
 				
@@ -799,7 +800,7 @@ public final class SimpleSequence implements Sequence {
 				if (homo_bp < 0) {
 					homo_bp = 0;
 				}
-				System.out.println("Refined homo bp: " + (homo_bp));
+				//System.out.println("Refined homo bp: " + (homo_bp));
 				homologousBreakPoints.add(homo_bp);				
 			}		
 			
@@ -870,11 +871,11 @@ public final class SimpleSequence implements Sequence {
 		
 		String parent1 = parents[0].getNucleotides();
 		String parent2 = parents[1].getNucleotides();				
-	
+		/*
 		System.out.println("Breakpoint = " + listBreakPoints.get(0));
 		System.out.println(parent1.substring(0, listBreakPoints.get(0)) + "|" + parent1.substring(listBreakPoints.get(0)));
 		System.out.println(parent2.substring(0, homologousBreakPoints.get(0)) + "|" + parent2.substring(homologousBreakPoints.get(0)));	
-		
+		*/
 		int counter = 0;
 		for (int nextBreakPoint : breakPoints) {				
 			int homologousNextBreakPoint = homologousBreakPoints.get(counter);	
@@ -895,13 +896,13 @@ public final class SimpleSequence implements Sequence {
 						 dest, breakPoints.last(), parents[1].getLength()-lastBreakPoint);
 		
 		String recombinant = product.getNucleotides();		
-		System.out.println(recombinant.substring(0, breakPoints.last()) + "|" + recombinant.substring(breakPoints.last()));		
+		//System.out.println(recombinant.substring(0, breakPoints.last()) + "|" + recombinant.substring(breakPoints.last()));		
 		
 		List<List<Integer>> newIndels = indels.getNewIndelList();
 		product.setIndelList(newIndels);
 		
-		System.out.println("======");
-		System.out.println(newIndels);		
+		//System.out.println("======");
+		//System.out.println(newIndels);		
 		
 		return(product);
 	}

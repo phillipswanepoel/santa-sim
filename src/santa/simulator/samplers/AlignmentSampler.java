@@ -239,23 +239,7 @@ public class AlignmentSampler implements Sampler {
 
         return result;
     }
-
-    class LengthComparator implements Comparator<List<Integer>> {
-        public int compare(final List<Integer> list1, final List<Integer> list2) {        
-            if (list1.get(0) == list2.get(0)) {
-                return Integer.compare(list1.get(1), list2.get(1));
-            }
-            else {
-                return Integer.compare(list1.get(0), list2.get(0));
-            }        
-        }
-    }
-
-    private List<List<Integer>> sortIndels(List<List<Integer>> insertions) {
-        List<List<Integer>> withoutOverlaps = insertions;      
-        Collections.sort(withoutOverlaps, new LengthComparator());
-        return withoutOverlaps;
-    }
+  
 
     //adds size gaps to string starting at position pos
     private String addGaps(String s, int pos, int size) {    
@@ -301,6 +285,10 @@ public class AlignmentSampler implements Sampler {
             ins.add(this.translation);
             return ins;
         }
+        
+        public int getPos() {
+        	return this.position;
+        }
 
         public Set<Integer> getViruses() {
             return this.affected_viruses;
@@ -311,27 +299,8 @@ public class AlignmentSampler implements Sampler {
         }
     }
 
-    
-    //calculates the final position of insert, once all remaining insertions and deletions have happened
-    private int calc_insert_pos(List<List<Integer>> indels, int insert_index) {
+   
 
-        int initial_pos = indels.get(insert_index).get(0);
-        int finalpos = initial_pos;
-
-        if (insert_index >= indels.size()-1) {
-            return finalpos;
-        }
-        //add impact 
-        for (int k = insert_index+1; k < indels.size(); k++) {
-            if (indels.get(k).get(0) < initial_pos) {
-                finalpos = finalpos - indels.get(k).get(1);
-            }
-        }
-
-        return finalpos;
-    }
-
-    private List<Insert_Event> insertion_events = new ArrayList<>();
     private Set<Integer> seenInsertions = new HashSet<Integer>();
     private HashMap<Integer, Insert_Event> insertion_map = new HashMap<Integer, Insert_Event>();    
 
@@ -369,11 +338,18 @@ public class AlignmentSampler implements Sampler {
 
                 if (seenInsertions.contains(indel_id)) {
                     insertion_map.get(indel_id).add_virus(virus_index);
+                    
+                    if (insertion_map.get(indel_id).getPos() != indel.get(0) - indel.get(2)) {
+                    	 System.out.println("Warning, pos-translation not equal for same indel in different viruses");
+                         System.out.println(insertion_map.get(indel_id).getPos());                         
+                         System.out.println(indel.get(0) - indel.get(2));      
+                         System.out.println("---");
+                    }                   
                 }
                 else {
                     seenInsertions.add(indel_id);                   
                     //insertion_map.put(mod_indel,  new Insert_Event(indel.get(0), indel.get(1), indel.get(2), virus_index, subseq));
-                    insertion_map.put(indel_id,  new Insert_Event(indel.get(0), indel.get(1), indel.get(2), virus_index, subseq));
+                    insertion_map.put(indel_id,  new Insert_Event(indel.get(0) - indel.get(2), indel.get(1), indel.get(2), virus_index, subseq));
                 }
 
             }
@@ -392,69 +368,89 @@ public class AlignmentSampler implements Sampler {
         return s;
     }
  
-
+    static class LengthComparator implements Comparator<Insert_Event> {
+        public int compare(final Insert_Event event1, final Insert_Event event2) {
+        	 return Integer.compare(event1.getPos(), event2.getPos());                 
+        }
+    }
+    
+    static List<Insert_Event> sortEventsByPosition(List<Insert_Event> events) {
+    	List<Insert_Event> events_sorted = new ArrayList<Insert_Event>(events);     
+        Collections.sort(events_sorted, new LengthComparator());
+        return events_sorted;
+    }
+    
     private List<String> add_insertions(List<String> genomeStringsList) {
 
-        List<String> inserted_strings = new ArrayList<String>(genomeStringsList);
-        Set<Integer> keys = insertion_map.keySet();       
-        List<List<Integer>> cum_changes = new ArrayList<List<Integer>>();       
+        List<String> inserted_strings = new ArrayList<String>(genomeStringsList);                    
+        List<Insert_Event> sorted_events = new ArrayList<Insert_Event>();
         
-        HashMap<Integer, List<List<Integer>>> gaps_added = new HashMap<Integer, List<List<Integer>>>();  
+        for (Insert_Event event: insertion_map.values()) {
+        	sorted_events.add(event);
+        }      
+     
+        sorted_events = sortEventsByPosition(sorted_events);
+        
+        System.out.println("");
+        System.out.println("Events AFTER sorting: ");
+        for (Insert_Event event: sorted_events) {
+        	System.out.print(event.getIns() + ", ");
+        }
+        System.out.println("");
+        
+        HashMap<Integer, Integer> gaps_added = new HashMap<Integer, Integer>();  
+        HashMap<Integer, Integer> insertions_added = new HashMap<Integer, Integer>(); 
+        //initiating with zero for each string
+        for (int r = 0; r < inserted_strings.size(); r++) {
+        	gaps_added.put(r, 0);
+        	insertions_added.put(r, 0);
+        }
 
-        for (Integer key : keys) {
+        for (Insert_Event event: sorted_events) {
             //System.out.println(key);
             //System.out.println(insertion_map.get(key).getSubseq());
             //System.out.println(insertion_map.get(key).getViruses());
             //System.out.println("");
-        	
-            Insert_Event temp = insertion_map.get(key);
 
-            List<Integer> indel = new ArrayList<Integer>(temp.getIns());
-            int pos = indel.get(0);
+            List<Integer> indel = new ArrayList<Integer>(event.getIns());
+            int pos = event.getPos();
             int size = indel.get(1);           
-            String subseq = temp.getSubseq();
-            Set<Integer> affected = temp.getViruses();   
+            String subseq = event.getSubseq();
+            Set<Integer> affected = event.getViruses();   
 
             for (int p = 0; p < inserted_strings.size(); p++) {
             	//THIS LOOP ALMOST CERTAINLY SOURCE OF SOME ISSUES
             	//HOW CAN YOU USE THE SAME TRANSLATION FOR ALL (WHEN RECOMBINATION IS A THING)
-            	//rather than using temp from insertion_map, need to get pos+trans from original stringlist
-            	int cum = 0;
+            	//rather than using temp from insertion_map, need to get pos+trans from original stringlist 
+            	int gaps = gaps_added.get(p);
+            	int inserted_nucleotides = insertions_added.get(p);
             	
-            	for (List<Integer> indy : cum_changes) {
-            		int temp_pos = indy.get(0);
-            		int temp_size = indy.get(1);
-            		
-            		if (temp_pos < pos) {
-            			cum = cum + temp_size;
-            		}
-            	}
                 if (affected.contains(p)) {
                 	
                     String old_string = inserted_strings.get(p); 
-                    String new_string = old_string.substring(0, pos + cum) + subseq + old_string.substring(pos + cum, old_string.length());
+                    String new_string = old_string.substring(0, pos + gaps + inserted_nucleotides) + subseq + old_string.substring(pos + gaps + inserted_nucleotides, old_string.length());
 
-                    inserted_strings.set(p, new_string);
-                    
+                    inserted_strings.set(p, new_string); 
+                    insertions_added.put(p, inserted_nucleotides + size);  
                 }
                 else {     
                     String old_string = inserted_strings.get(p);
                     
-                    if (pos- + cum > old_string.length()) { 
-                    	System.out.println(pos+ cum);
+                    if (pos + gaps + inserted_nucleotides > old_string.length()) { 
+                    	System.out.println("oh poesa, die gap calculation is verkeerd of iets");
+                    	System.out.println(old_string.length()); 
+                    	System.out.println(pos + gaps + inserted_nucleotides);
                 		System.out.println(pos);                		
-                		System.out.println(cum); 
+                		System.out.println(gaps);      
+                		System.out.println(inserted_nucleotides);  
                 		System.out.println("");   
-                	}
-                    
-                    String new_string = addGaps(old_string, pos + cum, size);
-
-                    inserted_strings.set(p, new_string);
+                	} else {
+                		String new_string = addGaps(old_string, pos + gaps + inserted_nucleotides, size);
+                        inserted_strings.set(p, new_string);
+                        gaps_added.put(p, gaps + size);     
+                	}   
                 }
-            }     
-            
-            cum_changes.add(indel);
-
+            }   
         }
 
         return inserted_strings;
@@ -540,12 +536,14 @@ public class AlignmentSampler implements Sampler {
             }              
             
             int temp_i = genomeStringsList.get(0).length();
-            for (String k : genomeStringsList) {   
+        
+            for (String k : genomeStringsList) {               	
             	
             	if (k.length() != temp_i) {
             		System.out.println("OH POESA, all strings not equal length after removing indels!");
             	}
-            	temp_i = k.length();    
+            	temp_i = k.length();   
+            	
             }
               
             finalStringsList = new ArrayList<String>(add_insertions(genomeStringsList));
