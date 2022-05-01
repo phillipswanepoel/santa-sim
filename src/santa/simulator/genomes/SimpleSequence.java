@@ -181,36 +181,137 @@ public final class SimpleSequence implements Sequence {
 	private int countChanges(int pos) {
 		int cumChanges = 0;
 		int tempPos = pos;
-
-		for (List<Integer> indels : this.indelList) {
-
-			if (indels.get(0) <= tempPos) {
-				cumChanges = cumChanges + indels.get(1);
-				tempPos = tempPos - indels.get(1);
+		
+		List<List<Integer>> indels_reversed = new ArrayList<List<Integer>>(this.indelList);		
+		Collections.reverse(indels_reversed);	
+		
+		for (List<Integer> indels : indels_reversed) {
+			
+			if (indels.get(1) > 0) {
+				if (indels.get(0) + indels.get(1) <= tempPos) {
+					cumChanges = cumChanges + indels.get(1);
+					tempPos = tempPos - indels.get(1);
+				} else if (indels.get(0) < tempPos && indels.get(0) + indels.get(1) > tempPos) {
+					int change = tempPos - indels.get(0);
+					cumChanges = cumChanges + change;
+					tempPos = tempPos - change;				
+				}
+			} else {
+				if (indels.get(0) <= tempPos) {
+					cumChanges = cumChanges + indels.get(1);
+					
+				} else {
+					
+				}
 			}
+			
 		}
 
 		return cumChanges;
 	}
 	
-	private List<List<Integer>> updateIndels(List<List<Integer>> indels, int pos, int size) {
-		List<List<Integer>> updated = new ArrayList<List<Integer>>(); 
+	private List<Integer> makeIndel(int p, int s, int t, int i) {
+		List<Integer> newIndel = new ArrayList<Integer>();					
+		newIndel.add(p);
+		newIndel.add(s);
+		newIndel.add(t);
+		newIndel.add(i);
+		
+		return newIndel;
+	}
+	
+	private List<List<Integer>> updateIndels(List<List<Integer>> indels, int pos, int size, List<Integer> new_indel) {
+		List<List<Integer>> updated = new ArrayList<List<Integer>>(); 		
+		int size_mod = 0;
 		
 		for (List<Integer> indel: indels) {
 			int old_pos = indel.get(0);
-			if (pos <= old_pos) {
-				List<Integer> newIndel = new ArrayList<Integer>();					
-				newIndel.add(old_pos + size);
-				newIndel.add(indel.get(1));
-				newIndel.add(indel.get(2) + size);
-				newIndel.add(indel.get(3));
-				
-				updated.add(newIndel);
-			}	
-			else {
-				updated.add(indel);
+			int old_size = indel.get(1);
+			if (size > 0) {
+				//if new indel is an insertion
+				if (pos <= old_pos) {		
+					updated.add(makeIndel(old_pos + size, indel.get(1), indel.get(2) + size, indel.get(3)));
+					
+				} else if (pos > old_pos && pos < old_pos + old_size) {
+					//indel has been split into two parts by newer indel
+					updated.add(makeIndel(old_pos, pos - old_pos, indel.get(2), indel.get(3)));		
+					updated.add(makeIndel(pos + size, indel.get(1) - (pos - old_pos), indel.get(2) + size + (pos - old_pos), indel.get(3)));	
+				}
+				else {
+					updated.add(indel);
+				}
+			} else {		
+				//new indel is a deletion
+				if (old_size < 0) {
+					//if old indel is a deletion
+					if (pos - size <= old_pos) {
+						//if before, just shift position	
+						updated.add(makeIndel(old_pos + size, indel.get(1), indel.get(2) + size, indel.get(3)));
+						
+					} else if (pos < old_pos && pos - size > old_pos) {
+						//new deletion overlaps old one, no need to shift
+						updated.add(makeIndel(old_pos, indel.get(1), indel.get(2), indel.get(3)));
+						
+					} else {
+						//if not, can just add, since deletions can't overlap with other deletions in any way
+						updated.add(indel);
+					}
+				} else {
+					//if old indel is an insertion, overlaps can happen, deleting parts of the insertion
+					if (pos - size <= old_pos) {
+						//no overlap just shift position						
+						updated.add(makeIndel(old_pos + size, indel.get(1), indel.get(2) + size, indel.get(3)));
+						
+					} else if (pos >= old_pos + old_size) {
+						//no overlap, no position shift needed
+						updated.add(makeIndel(old_pos , old_size, indel.get(2), indel.get(3)));
+						
+					} else if (pos <= old_pos && pos - size > old_pos ) {
+						//overlap, deletion overlaps with start of insertion
+						int size_remaining = old_pos + old_size - (pos - size);						
+						
+						if (size_remaining > 0) {
+							//if some of the insertion has survived, need to add this remaining fragment							
+							updated.add(makeIndel(pos, size_remaining, indel.get(2) + (pos - old_pos), indel.get(3)));		
+							size_mod += old_size - size_remaining;
+						} else {
+							System.out.println("WOAH");
+							System.out.println(indel);
+							System.out.println(new_indel);
+							System.out.println(getNucleotides());
+							System.out.println("-");		
+							size_mod += old_size;
+						}
+						
+						
+					} else if (pos > old_pos && pos < old_pos + old_size) {
+						//overlap, deletion is "inside" of insertion, could either delete from end, or be completely inside and split insertion into two parts
+						if (pos - size >= old_pos + old_size) {
+							//indel not split, end fragment is just deleted
+							updated.add(makeIndel(old_pos, pos - old_pos, indel.get(2), indel.get(3)));
+							size_mod += old_pos + old_size - pos;
+						} else {
+							//indel has been split into two parts
+							updated.add(makeIndel(old_pos, old_size + size, indel.get(2), indel.get(3)));	
+							//possible add second indel here?
+							size_mod = -1;
+						}
+					} 
+				}
 			}
+			
 		}
+		
+		if (Math.abs(size_mod) > Math.abs(size_mod)) {
+			System.out.println("OH KAKA, size mod > size");
+			System.out.println(this.indelList);
+			System.out.println(new_indel);
+			System.exit(0);
+		}
+		
+		if (size_mod >= 0 && size + size_mod != 0) {
+			updated.add(makeIndel(pos, size + size_mod, new_indel.get(2), new_indel.get(3)));		
+		}		
 		
 		return updated;
 	}
@@ -237,18 +338,18 @@ public final class SimpleSequence implements Sequence {
 					int posA = indelA.get(0);
 					int sizeA = Math.abs(indelA.get(1));
 					int idA = indelA.get(3);
-					//int signA = (int) Math.signum(indelA.get(1));	
+					int signA = (int) Math.signum(indelA.get(1));	
 					
 					int posB = indelB.get(0);
 					int sizeB = Math.abs(indelB.get(1));
 					int idB = indelB.get(3);
-					//int signB = (int) Math.signum(indelB.get(1));		
-					
-					if (posB >= posA && posB <= posA+sizeA) {
+					int signB = (int) Math.signum(indelB.get(1));		
+					//if (idA == idB && posB >= posA && posB <= posA+sizeA) 
+					if (idA == idB && posB >= posA && posB <= posA+sizeA && signA == signB && signA > 0) {
 						//there is an overlap, can merge
 						List<Integer> mergedIndel = new ArrayList<Integer>();					
 						mergedIndel.add(posA);
-						mergedIndel.add(sizeA + sizeB);
+						mergedIndel.add((sizeA + sizeB)*signA);
 						mergedIndel.add(indelA.get(2));
 						int modifier = (idA + idB)/2;
 						mergedIndel.add(modifier);
@@ -260,13 +361,28 @@ public final class SimpleSequence implements Sequence {
 						modified = true;
 						break outerloop;
 						
-					} else if (posA >= posB && posA <= posB+sizeB) {
+					//else if (idA == idB && posA >= posB && posA <= posB+sizeB)
+					} else if (idA == idB && posA >= posB && posA <= posB+sizeB && signA == signB && signA > 0) {
 						List<Integer> mergedIndel = new ArrayList<Integer>();					
 						mergedIndel.add(posB);
-						mergedIndel.add(sizeB + sizeA);
+						mergedIndel.add((sizeB + sizeA)*signA);
 						mergedIndel.add(indelB.get(2));
 						int modifier = (idB + idB)/2;
 						mergedIndel.add(modifier);
+						
+						merged.remove(i);
+						merged.remove(j-1);
+						merged.add(mergedIndel);						
+						
+						modified = true;
+						break outerloop;
+						
+					} else if (idA == idB && posA == posB && sizeA == sizeB && signA == signB && signA < 0) {
+						List<Integer> mergedIndel = new ArrayList<Integer>();					
+						mergedIndel.add(posA);
+						mergedIndel.add((sizeA)*signA);
+						mergedIndel.add(indelB.get(2));						
+						mergedIndel.add(indelB.get(3));
 						
 						merged.remove(i);
 						merged.remove(j-1);
@@ -296,20 +412,61 @@ public final class SimpleSequence implements Sequence {
 		System.arraycopy(states, pos+count, newstates, pos, states.length-pos-count);
 		states = newstates;		
 		assert (states.length % 3) == 0: "States.length changed, but now not divisible by 3, pos = " + pos;	
-
+		
+		this.indelList = sortIndelsByPosition(this.indelList);		
 		List<Integer> indel = new ArrayList<Integer>();	
 		indel.add(pos);
 		indel.add(-count);
-		indel.add(countChanges(pos));
+		int translation = countChanges(pos);
+		indel.add(translation);
 		
 		//adding unique identifier to indel event
 		IndelCounter indelcount = IndelCounter.INSTANCE.getInstance();
 		indelcount.addCount();		
 		indel.add(indelcount.getCount());
 
-		this.indelList.add(indel);			
+		System.out.println("Pre-updating indel list after deletion:");
+		System.out.println(this.indelList);
+		System.out.println(indel);
+		this.indelList = updateIndels(this.indelList, pos, -count, indel);	
+		System.out.println("Post-updating indel list after deletion:");
+		System.out.println(this.indelList);
+		System.out.println("");
+		
+		if (pos - translation < 0) {
+			System.out.println("OH POESSSSSS");
+			System.out.println(getNucleotides());
+			System.out.println(this.indelList);
+			System.out.println(indel);
+			System.exit(0);
+		} else if (pos - translation > 18) {
+			System.out.println("OH POESSSSSS, groter as 18");
+			System.out.println(getNucleotides());
+			System.out.println(this.indelList);
+			System.out.println(indel);
+			System.exit(0);
+		}		
+		
+		if (18 + countNetChange(this.indelList) != states.length) {
+			System.out.println("------------------------------------");
+			System.out.println("WARREFOK? indel list helemal verkeerd na deletion");
+			System.out.println(getNucleotides());			
+			System.out.println("length calculated: " + countNetChange(this.indelList) );
+			System.out.println("actual: " + (states.length - 18));	
+			System.out.println("----------------------------------");
+			System.exit(0);
+		}
 		
 		return(true);
+	}
+	
+	public int countNetChange(List<List<Integer>> indels) {
+		int sum = 0;
+		for (List<Integer> indel: indels) {
+			sum += indel.get(1);
+		}
+		
+		return sum;
 	}
 	
 	
@@ -327,19 +484,54 @@ public final class SimpleSequence implements Sequence {
 		List<Integer> indel = new ArrayList<Integer>();	
 		int pos = start;
 		int size = (source.getLength());			
-		this.indelList = updateIndels(this.indelList, pos, size);	
+			
+		this.indelList = sortIndelsByPosition(this.indelList);
 		
 		indel.add(pos);
 		indel.add(size);
-		indel.add(countChanges(start));
+		int translation = countChanges(pos);
+		indel.add(translation);		
+		
 		
 		//adding unique identifier to indel event
 		IndelCounter indelcount = IndelCounter.INSTANCE.getInstance();
 		indelcount.addCount();		
 		indel.add(indelcount.getCount());
 		
-		this.indelList.add(indel);				
-		this.indelList = mergeOverlaps(this.indelList);	
+		System.out.println("Pre-updating indel list after insertion:");
+		System.out.println(this.indelList);
+		System.out.println(indel);
+		this.indelList = updateIndels(this.indelList, pos, size, indel);
+		System.out.println("Post-updating indel list after insertion:");
+		System.out.println(this.indelList);
+		System.out.println("");
+			
+		//this.indelList.add(indel);	
+		//this.indelList = mergeOverlaps(this.indelList);	
+		
+		if (pos - translation < 0) {
+			System.out.println("OH POES");
+			System.out.println(getNucleotides());
+			System.out.println(this.indelList);
+			System.out.println(indel);
+			System.exit(0);
+		} else if (pos - translation > 18) {
+			System.out.println("OH POES, groter as 18");
+			System.out.println(getNucleotides());
+			System.out.println(this.indelList);
+			System.out.println(indel);
+			System.exit(0);
+		}	
+		
+		if (18 + countNetChange(this.indelList) != states.length) {
+			System.out.println("------------------------------------");
+			System.out.println("WARREFOK? indel list helemal verkeerd na insertion");
+			System.out.println(getNucleotides());			
+			System.out.println("length calculated: " + countNetChange(this.indelList) );
+			System.out.println("actual: " + (states.length - 18));			
+			System.out.println("----------------------------------");
+			System.exit(0);
+		}
 		
 		return(true);
 	}
@@ -498,7 +690,7 @@ public final class SimpleSequence implements Sequence {
 	static class LengthComparator2 implements Comparator<List<Integer>> {
         public int compare(final List<Integer> list1, final List<Integer> list2) {        
             if (list1.get(0) == list2.get(0)) {
-                return Integer.compare(list1.get(0), list2.get(0));
+                return Integer.compare(list1.get(1), list2.get(1));
             }
             else {
                 return Integer.compare(list1.get(0), list2.get(0));
@@ -528,79 +720,17 @@ public final class SimpleSequence implements Sequence {
 		
 		return final_list;
     }
-    */
+    */   
     
-    static List<List<Integer>> selectIndels(List<List<Integer>> oldList, List<List<Integer>> currentList, int start, int end, int shift_diff) {    	
-    	List<List<Integer>> selectedIndels = new ArrayList<>();
-    	
-    	if (currentList.size() > 0) {
-    		int counter = 0;
-
-			List<Integer> startIndel = new ArrayList<Integer>(currentList.get(0));
-
-			while (counter < currentList.size()) {
-				
-				startIndel = currentList.get(counter);					
-				int old_pos = oldList.get(counter).get(0);				
-				int updated_pos = startIndel.get(0);
-				int size = Math.abs(startIndel.get(1));
-				int sign = (int) Math.signum(startIndel.get(1));
-				int unique_id = startIndel.get(3);
-				
-				if (start <= updated_pos && (updated_pos + size) <= end) {
-					//Indel cleanly within block
-					List<Integer> newIndel = new ArrayList<Integer>();
-					newIndel.add(updated_pos - shift_diff);
-					newIndel.add(size*sign);
-					newIndel.add(startIndel.get(2) - shift_diff);					
-					newIndel.add(unique_id);		
-					
-					selectedIndels.add(newIndel);
-
-				} else if ( ((start <= updated_pos) && (updated_pos < end)) && ((updated_pos + size) > end) ) {
-					//Indel divided by end breakpoint						
-					List<Integer> dividedIndel = new ArrayList<Integer>();
-					int new_size = (end - updated_pos);				
-					dividedIndel.add(updated_pos - shift_diff);
-					dividedIndel.add(new_size*sign);
-					dividedIndel.add(startIndel.get(2) - shift_diff);
-					dividedIndel.add(unique_id);	
-					/*
-					if (shift_diff != 0) {
-						//if size has been changed, we need to treat this as if it is a new indel
-						IndelCounter indelcount = IndelCounter.INSTANCE.getInstance();
-						indelcount.addCount();		
-						unique_id = indelcount.getCount();	
-					}
-					*/
-					selectedIndels.add(dividedIndel);
-
-				} else if ( (updated_pos < start) && ((updated_pos + size) > start) && ((updated_pos + size) <= end)) {
-					//Indel divided by starting breakpoint						
-					List<Integer> dividedIndel = new ArrayList<Integer>();
-					//dividedIndel.add(old_pos + (updated_pos - start));
-					dividedIndel.add(start);
-					dividedIndel.add((updated_pos + size - start)*sign);
-					dividedIndel.add(startIndel.get(2) - shift_diff);
-					dividedIndel.add(unique_id);
-					/*
-					if (shift_diff != 0) {
-						//if size has been changed, we need to treat this as if it is a new indel
-						IndelCounter indelcount = IndelCounter.INSTANCE.getInstance();
-						indelcount.addCount();		
-						unique_id = indelcount.getCount();	
-					}
-					*/
-					selectedIndels.add(dividedIndel);
-				} 
-
-				counter++;							
-			}
-
-		}
-    	
-    	return selectedIndels;
+    static int countTotalChange(List<List<Integer>> indels) {
+    	int total = 0;
+    	for (List<Integer> indel: indels) {
+    		total += indel.get(1);
+    	}
+    	return total;
     }
+    
+    
 	
 	static List<List<Integer>> updatePositions(List<List<Integer>> indels) {
 		//updates positions and translations so that they are accurate for current time, not time of specific indel event
@@ -652,58 +782,9 @@ public final class SimpleSequence implements Sequence {
 		
 	}
 	
-	static int calcFrameShift(int pos, List<List<Integer>> sorted_indels, boolean hard) {
-		int frameshift = 0;
-		int bp_pos = pos;	
-		
-		for (List<Integer> indel: sorted_indels) {	
-			int updated_pos = indel.get(0);
-			int sign = (int) Math.signum(indel.get(1));
-			int size = Math.abs(indel.get(1));		
-			
-			if (updated_pos < bp_pos && updated_pos >= 0) {
-				if (updated_pos + size >= bp_pos) {	
-					if (hard) {
-						frameshift = frameshift + ((size)*sign);
-						//frameshift = frameshift + (bp_pos - updated_pos)*sign;						
-						bp_pos = bp_pos + (size)*sign;
-					}
-					else {
-						frameshift = frameshift + (bp_pos - updated_pos)*sign;
-						//frameshift = frameshift + ((size)*sign);
-						//bp_pos = bp_pos + (size)*sign;
-					}					
-				} else {
-					if (hard) {
-						frameshift = frameshift + (size)*sign;
-						bp_pos = bp_pos + (size)*sign;
-					}
-					else {
-						frameshift = frameshift + (size)*sign;
-						//bp_pos = bp_pos + (size)*sign;
-					}
-					
-					//bp_pos = bp_pos + (size)*sign;
-				}					
-			}	
-		}	
-		
-		return frameshift;
-	}
+
 	
-	//calcShiftDiff(bp, indels1, indels2, updatedIndels1, updatedIndels2)
-	static int calcHomoBreakPoint(int pos, List<List<Integer>> indels1_sorted, List<List<Integer>> indels2_sorted) {
-		//calculates difference in frameshift between two sequences (caused by indels) up to a certain nucleotide position	
-		/*
-		System.out.println("---------------------------------------");		
-		System.out.println(indels1_sorted);
-		System.out.println(indels2_sorted);	
-		*/
-		int frameshift1 = calcFrameShift(pos, indels1_sorted, false);
-		int frameshift2 = calcFrameShift(Math.max(pos - frameshift1, 0), indels2_sorted, true);		
-				
-		return pos + frameshift2 - frameshift1;
-	}
+
 	
 	
 	static private class indelCollection {
@@ -715,9 +796,11 @@ public final class SimpleSequence implements Sequence {
 		private List<List<Integer>> sortedIndels2;
 		private List<Integer> breakPointsList;
 		private List<Integer> homologousBreakPointsList;
-		int[] parentLengths;
+		int[] parentLengths;		
+		private int del_shift;
 		
 		public indelCollection(List<List<Integer>> parent1indels, List<List<Integer>> parent2indels, SortedSet<Integer> breakPoints, int[] parentLengths) {	
+			this.del_shift = 0;
 			this.indels1 = new ArrayList<List<Integer>>(parent1indels);		
 			this.indels2 = new ArrayList<List<Integer>>(parent2indels);	
 			//this.updatedIndels1 =  new ArrayList<List<Integer>>(updatePositions(indels1));
@@ -755,6 +838,172 @@ public final class SimpleSequence implements Sequence {
 			return sorted_indels;
 		}
 		
+		private List<List<Integer>> selectIndels(List<List<Integer>> oldList, List<List<Integer>> currentList, int start, int end, int shift_diff, int type) {    	
+	    	List<List<Integer>> selectedIndels = new ArrayList<>();    
+	    	
+	    	if (currentList.size() > 0) {
+	    		int counter = 0;
+
+				List<Integer> startIndel = new ArrayList<Integer>(currentList.get(0));
+				List<Integer> lastIndel = new ArrayList<Integer>(startIndel);
+
+				while (counter < currentList.size()) {
+					
+					startIndel = currentList.get(counter);					
+					int old_pos = oldList.get(counter).get(0);				
+					int updated_pos = startIndel.get(0);
+					int size = Math.abs(startIndel.get(1));
+					int sign = (int) Math.signum(startIndel.get(1));
+					int unique_id = startIndel.get(3);						
+							
+						
+					if (start <= updated_pos && ((sign > 0 && updated_pos + size <= end) || 
+													(sign < 0 && ((updated_pos < end && type==0) || (updated_pos <= end && type==2)))))  {
+						//Indel cleanly within block
+						if (sign > 0 || updated_pos > start) {
+							List<Integer> newIndel = new ArrayList<Integer>();
+							newIndel.add(updated_pos - shift_diff);
+							newIndel.add(size*sign);
+							newIndel.add(startIndel.get(2) - shift_diff);					
+							newIndel.add(unique_id);	
+							newIndel.add(-3);	
+							
+							selectedIndels.add(newIndel);
+						} else if (sign < 0 && updated_pos == start) {							
+							
+							if (del_shift < 0) {
+								List<Integer> newIndel = new ArrayList<Integer>();
+								newIndel.add(start);
+								newIndel.add(del_shift);
+								newIndel.add(startIndel.get(2) - shift_diff - (size + del_shift));					
+								newIndel.add(unique_id);	
+								newIndel.add(-4);
+								
+								selectedIndels.add(newIndel);
+							} else {
+								List<Integer> newIndel = new ArrayList<Integer>();
+								newIndel.add(updated_pos - shift_diff);
+								newIndel.add(size*sign);
+								newIndel.add(startIndel.get(2) - shift_diff);					
+								newIndel.add(unique_id);	
+								newIndel.add(-3);	
+								
+								selectedIndels.add(newIndel);
+							}
+						}
+						
+
+					} else if ( ((start <= updated_pos) && (updated_pos < end)) && ((updated_pos + size) > end)) {
+						//Indel divided by end breakpoint						
+						List<Integer> dividedIndel = new ArrayList<Integer>();
+						int new_size = (end - updated_pos);				
+						dividedIndel.add(updated_pos - shift_diff);
+						dividedIndel.add(new_size*sign);
+						dividedIndel.add(startIndel.get(2) - shift_diff);
+						dividedIndel.add(unique_id);	
+						dividedIndel.add(-2);	
+						/*
+						IndelCounter indelcount = IndelCounter.INSTANCE.getInstance();
+						indelcount.addCount();		
+						unique_id = indelcount.getCount();	
+						dividedIndel.add(unique_id);						
+						*/					
+						selectedIndels.add(dividedIndel);
+
+					} else if ((updated_pos < start) && ((updated_pos + size*sign) > start) && ((updated_pos + size) <= end)) {
+						//Indel divided by starting breakpoint						
+						List<Integer> dividedIndel = new ArrayList<Integer>();
+						//dividedIndel.add(old_pos + (updated_pos - start));					
+						int change = start - updated_pos;
+						dividedIndel.add(updated_pos - shift_diff + change);
+						dividedIndel.add((updated_pos + size - start)*sign);
+						dividedIndel.add(startIndel.get(2) - shift_diff + change);	
+						dividedIndel.add(unique_id);	
+						
+//						IndelCounter indelcount = IndelCounter.INSTANCE.getInstance();
+//						indelcount.addCount();		
+//						unique_id = indelcount.getCount();	
+//						dividedIndel.add(unique_id);
+						
+						dividedIndel.add(-1);	
+						selectedIndels.add(dividedIndel);
+					} 
+					
+					lastIndel = new ArrayList<Integer>(startIndel);
+					counter++;					
+							    	
+				}
+
+			}   
+	    	
+	    	return selectedIndels;
+	    }
+		
+		private int calcFrameShift(int pos, List<List<Integer>> sorted_indels, boolean hard) {
+			
+			int frameshift = 0;
+			int bp_pos = pos;	
+			
+			
+			for (List<Integer> indel: sorted_indels) {	
+				int updated_pos = indel.get(0);
+				int sign = (int) Math.signum(indel.get(1));
+				int size = Math.abs(indel.get(1));		
+				
+				if (updated_pos < bp_pos && updated_pos >= 0) {				
+					if (hard) {
+						if (sign < 0) {
+							if (updated_pos + size <= bp_pos) {
+								frameshift = frameshift + size*sign;											
+								bp_pos = bp_pos + size*sign;
+							} else {
+								this.del_shift = (updated_pos + size - bp_pos)*sign;	
+								frameshift = frameshift + (bp_pos - updated_pos)*sign;		
+								bp_pos = bp_pos + (bp_pos - updated_pos)*sign;									
+							}								
+							
+						} else {
+							frameshift = frameshift + size*sign;											
+							bp_pos = bp_pos + size*sign;																		
+						}			
+					}
+					else {
+						if (sign < 0) {
+							if (updated_pos + size >= bp_pos) {
+								//frameshift = frameshift + (bp_pos - updated_pos)*sign;
+								frameshift = frameshift + size*sign;
+							} else {
+								frameshift = frameshift + size*sign;
+							}	
+						} else {
+							if (updated_pos + size >= bp_pos) {
+								frameshift = frameshift + (bp_pos - updated_pos)*sign;
+							} else {
+								frameshift = frameshift + size*sign;
+							}						
+						}					
+					}				
+					
+				}	
+			}
+			
+			return frameshift;
+		}
+		
+		//calcShiftDiff(bp, indels1, indels2, updatedIndels1, updatedIndels2)
+		private int calcHomoBreakPoint(int pos, List<List<Integer>> indels1_sorted, List<List<Integer>> indels2_sorted) {
+			//calculates difference in frameshift between two sequences (caused by indels) up to a certain nucleotide position	
+			
+			System.out.println("---------------------------------------");		
+			System.out.println(indels1_sorted);
+			System.out.println(indels2_sorted);	
+			
+			int frameshift1 = calcFrameShift(pos, indels1_sorted, false);
+			int frameshift2 = calcFrameShift(Math.max(pos - frameshift1, 0), indels2_sorted, true);			
+							
+			return pos + frameshift2 - frameshift1;
+		}
+		
 		private int refineBP(int bp, int homobp) {
 			//need to be smarter about how indels are dealth with that go across the breakpoint
 			//if this indel is shared between both parents, need to make homo breakpoint such that it is preserved
@@ -778,7 +1027,7 @@ public final class SimpleSequence implements Sequence {
 				int updated_pos = indel.get(0);						
 				int size = Math.abs(indel.get(1));
 				int sign = (int) Math.signum(indel.get(1));
-				if (updated_pos == pos || pos != -1 && updated_pos <= homobp && updated_pos+size > homobp && sign > 0) {
+				if ((updated_pos == pos || pos != -1) && updated_pos <= homobp && updated_pos+size > homobp && sign > 0) {
 					//we have a match, update homobp accordingly
 					if (nucleotides_inherited <= updated_pos+size-homobp) {
 						refined_bp = refined_bp + nucleotides_inherited;
@@ -792,15 +1041,16 @@ public final class SimpleSequence implements Sequence {
 		public List<Integer> getHomologousBreakPoints() {
 			List<Integer> homologousBreakPoints = new ArrayList<Integer>();
 			
-			for (int bp :breakPointsList) {
+			for (int bp: breakPointsList) {
 				
-				int homo_bp = calcHomoBreakPoint(bp, sortedIndels1, sortedIndels2);				
+				int homo_bp = calcHomoBreakPoint(bp, sortedIndels1, sortedIndels2);		
+				System.out.println("Unrefined homo bp: " + (homo_bp));
 				homo_bp = refineBP(bp, homo_bp);				
 				homo_bp = Math.min(homo_bp, this.parentLengths[1]);		
 				if (homo_bp < 0) {
 					homo_bp = 0;
 				}
-				//System.out.println("Refined homo bp: " + (homo_bp));
+				System.out.println("Refined homo bp: " + (homo_bp));
 				homologousBreakPoints.add(homo_bp);				
 			}		
 			
@@ -829,15 +1079,46 @@ public final class SimpleSequence implements Sequence {
 				homoBreakPoints_with_end.add(this.parentLengths[0]);
 			}				
 			//Looping through breakpoints and adding indels that fall between consecutive ones	
-			//selectIndels(List<List<Integer>> oldList, List<List<Integer>> currentList, int start, int end, int shift_diff)		
-			updated_indels1 =  selectIndels(indels1, updated_indels1, 0, breakPoints_with_end.get(0), 0);
-			updated_indels2 =  selectIndels(indels2, updated_indels2, homoBreakPoints_with_end.get(0),  parentLengths[1],  homoBreakPoints_with_end.get(0) - breakPoints_with_end.get(0));
+			//selectIndels(List<List<Integer>> oldList, List<List<Integer>> currentList, int start, int end, int shift_diff)
 			
+			//For very start of genome and very end, deletions should been handled somewhat differently
+			//included if == start only start = 0. included if end == end only if end == genomelength
+			updated_indels1 =  selectIndels(indels1, updated_indels1, 0, breakPoints_with_end.get(0), 0, 0);
+			updated_indels2 =  selectIndels(indels2, updated_indels2, homoBreakPoints_with_end.get(0),  parentLengths[1],  homoBreakPoints_with_end.get(0) - breakPoints_with_end.get(0), 2);
+			this.del_shift = 0;
 			List<List<Integer>> merged_indels =  new ArrayList<List<Integer>>();	
 			merged_indels.addAll(updated_indels1);
 			merged_indels.addAll(updated_indels2);
 			
+			for (List<Integer> indel: merged_indels) {
+				int pos = indel.get(0);
+				int trans = indel.get(2);
+				
+				if (pos - trans < 0 || pos - trans > 18) {
+					System.out.println("OH POES, select failed");
+					System.out.println(indel);
+					System.exit(0);
+				}
+			}
+			
 			merged_indels = sortIndelsByPosition(merged_indels);
+			System.out.println("");
+			System.out.println("PRE MERGER: ");
+			System.out.println(merged_indels);
+			merged_indels = mergeOverlaps(merged_indels);
+			System.out.println("POST MERGER: ");
+			System.out.println(merged_indels);
+			
+			for (List<Integer> indel: merged_indels) {
+				int pos = indel.get(0);
+				int trans = indel.get(2);
+				
+				if (pos - trans < 0 || pos - trans > 18) {
+					System.out.println("OH POES, merging failed");
+					System.out.println(indel);
+					System.exit(0);
+				}
+			}
 			
 			return merged_indels;
 
@@ -871,11 +1152,11 @@ public final class SimpleSequence implements Sequence {
 		
 		String parent1 = parents[0].getNucleotides();
 		String parent2 = parents[1].getNucleotides();				
-		/*
+		
 		System.out.println("Breakpoint = " + listBreakPoints.get(0));
 		System.out.println(parent1.substring(0, listBreakPoints.get(0)) + "|" + parent1.substring(listBreakPoints.get(0)));
 		System.out.println(parent2.substring(0, homologousBreakPoints.get(0)) + "|" + parent2.substring(homologousBreakPoints.get(0)));	
-		*/
+		
 		int counter = 0;
 		for (int nextBreakPoint : breakPoints) {				
 			int homologousNextBreakPoint = homologousBreakPoints.get(counter);	
@@ -890,13 +1171,11 @@ public final class SimpleSequence implements Sequence {
 			counter++;
 		}
 		
-		
-		
 		System.arraycopy(seq.states, lastBreakPoint, 
 						 dest, breakPoints.last(), parents[1].getLength()-lastBreakPoint);
 		
 		String recombinant = product.getNucleotides();		
-		//System.out.println(recombinant.substring(0, breakPoints.last()) + "|" + recombinant.substring(breakPoints.last()));		
+		System.out.println(recombinant.substring(0, breakPoints.last()) + "|" + recombinant.substring(breakPoints.last()));		
 		
 		List<List<Integer>> newIndels = indels.getNewIndelList();
 		product.setIndelList(newIndels);

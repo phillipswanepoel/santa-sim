@@ -257,14 +257,12 @@ public class AlignmentSampler implements Sampler {
         private int size;   
         private int translation;     
         private Set<Integer> affected_viruses = new HashSet<Integer>(); //idea is to list all viruses where seq inserted, rest gaps
+        private HashMap<Integer, String> virus_string_map = new HashMap<Integer, String>();    
+        private HashMap<Integer, Integer> virus_size_map = new HashMap<Integer, Integer>();         
+        private int unique_id;
+        private int offset_type;
+        
         private String subseq;
-
-        public Insert_Event(int pos, int s, int translation, String subs) {
-            this.position = pos;
-            this.size = s;  
-            this.translation = translation;          
-            this.subseq = subs;
-        }
 
         public Insert_Event(int pos, int s, int translation, int virus_index, String subs) {
             this.position = pos;
@@ -272,10 +270,55 @@ public class AlignmentSampler implements Sampler {
             this.subseq = subs;
             this.translation = translation;   
             this.affected_viruses.add(virus_index);
+            this.virus_string_map.put(virus_index, subs);
+            this.virus_size_map.put(virus_index, s);            
         }
-
-        public void add_virus(int virus_index) {
-            this.affected_viruses.add(virus_index);
+        
+        public void add_virus(int virus_index, String subs, int size, int offset) {
+        	if (! (affected_viruses.contains(virus_index))) {
+        		this.affected_viruses.add(virus_index);
+                this.virus_string_map.put(virus_index, subs);
+                this.virus_size_map.put(virus_index, size);      
+                
+                if (offset != 0) {
+                	System.out.println("!!!!");
+                	System.out.println("WARNING: offset not zero for different viruses, somethign went wrong with translation calculation");
+                	System.out.println(virus_index);
+                	System.out.println(subs);
+                	System.out.println(size);
+                	System.out.println(offset);
+                }
+        	} else {
+        		String old_string = this.virus_string_map.get(virus_index);
+        		int old_size = this.virus_size_map.get(virus_index);
+        		if (offset > 0) {        			
+        			this.virus_string_map.put(virus_index, old_string + subs);
+        			this.offset_type = 1;
+        		} else {
+        			this.virus_string_map.put(virus_index, subs + old_string);
+        			this.offset_type = -1;
+        		}
+        		this.virus_size_map.put(virus_index, old_size + size);
+        	}            
+        }
+        
+        public HashMap<Integer, String> get_virus_string_map() {
+        	return this.virus_string_map;
+        }
+        
+        public HashMap<Integer, Integer> get_virus_size_map() {
+        	return this.virus_size_map;
+        }
+        public int getOffsetType() {
+        	return this.offset_type;
+        }
+        
+        public void setId(int id) {
+        	this.unique_id = id;
+        }
+        
+        public int getID() {
+        	return this.unique_id;
         }
 
         public List<Integer> getIns() {
@@ -297,6 +340,16 @@ public class AlignmentSampler implements Sampler {
         public String getSubseq() {
             return this.subseq;
         }
+        
+        public int getMaxSize() {
+        	int max = 0;
+        	for (int size: virus_size_map.values()) {
+        		if (size > max) {
+        			max = size;
+        		}
+        	}
+        	return max;
+        }
     }
 
    
@@ -306,63 +359,67 @@ public class AlignmentSampler implements Sampler {
 
     //returns string with gap characters added and insertions removed
     private String remove_indels(String s, List<List<Integer>> indels, int virus_index) {   
-    	
+    	   
+    
         for (List<Integer> indel : indels) {
-            String subseq = "";
-            
+            String subseq = "";            
+           
             int ini_size = s.length();
-            int sizy = indel.get(1);
+            int pos = indel.get(0);
+            int size = indel.get(1);
 
-            if (indel.get(1) < 0) {
+            if (size < 0) {
             	
-            	if (indel.get(0) > s.length()) {            		
+            	if (pos > s.length()) {            		
             		System.out.println("deletion out of bounds: ");
             		System.out.println(indel);
             		System.out.println(s.length());
             	}
             	
-                s = addGaps(s, indel.get(0), -indel.get(1));
+                s = addGaps(s, pos, -size);
             }
             else {
             	
-            	if (indel.get(0) >= s.length()) {            		
+            	if (pos >= s.length()) {            		
             		System.out.println("insertion out of bounds: ");
             		System.out.println(indel);
             		System.out.println(s.length());
             	}
             	
-                subseq = s.substring(indel.get(0), indel.get(0)+indel.get(1));
-                s = s.substring(0, indel.get(0)) + s.substring(indel.get(0)+indel.get(1), s.length());
+                subseq = s.substring(pos, pos+size);
+                s = s.substring(0, pos) + s.substring(pos+size, s.length());
               
                 int indel_id = indel.get(3);
 
-                if (seenInsertions.contains(indel_id)) {
-                    insertion_map.get(indel_id).add_virus(virus_index);
+                if (seenInsertions.contains(indel_id)) {                    
                     
                     if (insertion_map.get(indel_id).getPos() != indel.get(0) - indel.get(2)) {
-                    	 System.out.println("Warning, pos-translation not equal for same indel in different viruses");
-                         System.out.println(insertion_map.get(indel_id).getPos());                         
-                         System.out.println(indel.get(0) - indel.get(2));      
-                         System.out.println("---");
-                    }                   
+                    	
+	                     int offset = (pos - indel.get(2)) - insertion_map.get(indel_id).getPos();
+	                     insertion_map.get(indel_id).add_virus(virus_index, subseq, size, offset);	
+	                     
+                    } else {                    	
+                    	insertion_map.get(indel_id).add_virus(virus_index, subseq, size, 0);
+                    }
                 }
                 else {
                     seenInsertions.add(indel_id);                   
                     //insertion_map.put(mod_indel,  new Insert_Event(indel.get(0), indel.get(1), indel.get(2), virus_index, subseq));
-                    insertion_map.put(indel_id,  new Insert_Event(indel.get(0) - indel.get(2), indel.get(1), indel.get(2), virus_index, subseq));
+                    insertion_map.put(indel_id,  new Insert_Event(pos - indel.get(2), size, indel.get(2), virus_index, subseq));
+                    insertion_map.get(indel_id).setId(indel_id);
                 }
 
             }
             
             int final_size = s.length();
             
-            if (final_size != ini_size - sizy) {
+            if (final_size != ini_size - size) {
             	System.out.println("POESOP");
             	System.out.println(ini_size);
-            	System.out.println(sizy);
+            	System.out.println(size);
             	System.out.println(final_size);
             	
-            }            
+            }                
         }
         
         return s;
@@ -382,8 +439,13 @@ public class AlignmentSampler implements Sampler {
     
     private List<String> add_insertions(List<String> genomeStringsList) {
 
-        List<String> inserted_strings = new ArrayList<String>(genomeStringsList);                    
+        List<String> inserted_strings = new ArrayList<String>(genomeStringsList);     
         List<Insert_Event> sorted_events = new ArrayList<Insert_Event>();
+        
+        for (String s : inserted_strings) {
+        	System.out.println(s);
+        }
+        System.out.println("");
         
         for (Insert_Event event: insertion_map.values()) {
         	sorted_events.add(event);
@@ -394,8 +456,9 @@ public class AlignmentSampler implements Sampler {
         System.out.println("");
         System.out.println("Events AFTER sorting: ");
         for (Insert_Event event: sorted_events) {
-        	System.out.print(event.getIns() + ", ");
+        	System.out.print(event.getIns() + " " + event.getID() + ", ");
         }
+        System.out.println("");
         System.out.println("");
         
         HashMap<Integer, Integer> gaps_added = new HashMap<Integer, Integer>();  
@@ -407,31 +470,56 @@ public class AlignmentSampler implements Sampler {
         }
 
         for (Insert_Event event: sorted_events) {
-            //System.out.println(key);
-            //System.out.println(insertion_map.get(key).getSubseq());
-            //System.out.println(insertion_map.get(key).getViruses());
-            //System.out.println("");
+        	HashMap<Integer, String> virus_strings = event.get_virus_string_map();
+        	HashMap<Integer, Integer> virus_sizes = event.get_virus_size_map(); 
+        	
+        	System.out.println(virus_strings);
+        	System.out.println(virus_sizes);
 
             List<Integer> indel = new ArrayList<Integer>(event.getIns());
             int pos = event.getPos();
             int size = indel.get(1);           
             String subseq = event.getSubseq();
             Set<Integer> affected = event.getViruses();   
+            int max_size = event.getMaxSize();
+            
+            System.out.println(pos);   
+            System.out.println(max_size);           
+            System.out.println(event.getSubseq());                 
+            System.out.println("");
+            
 
             for (int p = 0; p < inserted_strings.size(); p++) {
             	//THIS LOOP ALMOST CERTAINLY SOURCE OF SOME ISSUES
             	//HOW CAN YOU USE THE SAME TRANSLATION FOR ALL (WHEN RECOMBINATION IS A THING)
-            	//rather than using temp from insertion_map, need to get pos+trans from original stringlist 
+            	//rather than using temp from insertion_map, need to get pos+trans from original stringlist             	
             	int gaps = gaps_added.get(p);
             	int inserted_nucleotides = insertions_added.get(p);
             	
                 if (affected.contains(p)) {
+                	subseq = virus_strings.get(p);
+                	size = virus_sizes.get(p);
                 	
-                    String old_string = inserted_strings.get(p); 
-                    String new_string = old_string.substring(0, pos + gaps + inserted_nucleotides) + subseq + old_string.substring(pos + gaps + inserted_nucleotides, old_string.length());
+                    String old_string = inserted_strings.get(p);                 
+                    String new_string = old_string.substring(0, pos + gaps + inserted_nucleotides) + 
+                    		subseq + old_string.substring(pos + gaps + inserted_nucleotides, old_string.length());
+                    
+                    if (size < max_size) {
+                    	int offset_type = event.getOffsetType();
+                    	if (offset_type < 0) {
+                    		new_string = addGaps(new_string, pos + gaps + inserted_nucleotides + size, max_size - size);
+                    	} else {
+                    		//if offset is negative type, need to insert gaps BEFORE inserted substring, not after
+                    		new_string = addGaps(new_string, pos + gaps + inserted_nucleotides, max_size - size);
+                    		System.out.println("HOLY SHIT IT HAPPENED");
+                    		System.out.println(subseq);
+                    	}
+                    	
+                    	gaps_added.put(p, gaps + max_size - size);
+                    }
 
                     inserted_strings.set(p, new_string); 
-                    insertions_added.put(p, inserted_nucleotides + size);  
+                    insertions_added.put(p, inserted_nucleotides + size);                      
                 }
                 else {     
                     String old_string = inserted_strings.get(p);
@@ -440,17 +528,14 @@ public class AlignmentSampler implements Sampler {
                     	System.out.println("oh poesa, die gap calculation is verkeerd of iets");
                     	System.out.println(old_string.length()); 
                     	System.out.println(pos + gaps + inserted_nucleotides);
-                		System.out.println(pos);                		
-                		System.out.println(gaps);      
-                		System.out.println(inserted_nucleotides);  
-                		System.out.println("");   
-                	} else {
-                		String new_string = addGaps(old_string, pos + gaps + inserted_nucleotides, size);
+                		System.out.println(indel);                  		 
+                	} else {                		
+                		String new_string = addGaps(old_string, pos + gaps + inserted_nucleotides, max_size);
                         inserted_strings.set(p, new_string);
-                        gaps_added.put(p, gaps + size);     
+                        gaps_added.put(p, gaps + max_size);    
                 	}   
                 }
-            }   
+            }  
         }
 
         return inserted_strings;
@@ -512,8 +597,8 @@ public class AlignmentSampler implements Sampler {
                 List<List<Integer>> indelsList = new ArrayList<List<Integer>>(virus.getGenome().getSequence().getIndelList());                
                 indelsList = sortIndelsByPosition(indelsList);
                 System.out.println("> " + i);
-                System.out.println(indelsList);    
-                System.out.println("");           
+                //System.out.println(indelsList);    
+               // System.out.println("");           
 
                 //System.out.println("GENOME: " + Integer.toString(counter+1)); 
                 //System.out.println(indelsList);              

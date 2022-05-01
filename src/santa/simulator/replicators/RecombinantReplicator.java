@@ -103,7 +103,6 @@ public class RecombinantReplicator implements Replicator {
 					bp = bp + (3-(bp % 3));
 					breakPoints.add(bp);
 				}
-
 			}
 
 			logger.finest("recombination: " + breakPoints.size() + "@" + breakPoints);			
