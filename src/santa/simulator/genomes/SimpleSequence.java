@@ -244,13 +244,21 @@ public final class SimpleSequence implements Sequence {
 				//new indel is a deletion
 				if (old_size < 0) {
 					//if old indel is a deletion
-					if (pos - size <= old_pos) {
+					if (pos == old_pos) {
+						//combine deletions into one larger one
+						size_mod += old_size;
+						
+					} else if (pos - size <= old_pos) {
 						//if before, just shift position	
-						updated.add(makeIndel(old_pos + size, indel.get(1), indel.get(2) + size, indel.get(3)));
+						if (pos - size == old_pos) {
+							size_mod += old_size;
+						} else {
+							updated.add(makeIndel(old_pos + size, indel.get(1), indel.get(2) + size, indel.get(3)));
+						}						
 						
 					} else if (pos < old_pos && pos - size > old_pos) {
 						//new deletion overlaps old one, no need to shift
-						updated.add(makeIndel(old_pos, indel.get(1), indel.get(2), indel.get(3)));
+						size_mod += old_size;
 						
 					} else {
 						//if not, can just add, since deletions can't overlap with other deletions in any way
@@ -294,22 +302,15 @@ public final class SimpleSequence implements Sequence {
 							//indel has been split into two parts
 							updated.add(makeIndel(old_pos, old_size + size, indel.get(2), indel.get(3)));	
 							//possible add second indel here?
-							size_mod = -1;
+							size_mod = -size;
 						}
 					} 
 				}
 			}
 			
 		}
-		
-		if (Math.abs(size_mod) > Math.abs(size_mod)) {
-			System.out.println("OH KAKA, size mod > size");
-			System.out.println(this.indelList);
-			System.out.println(new_indel);
-			System.exit(0);
-		}
-		
-		if (size_mod >= 0 && size + size_mod != 0) {
+						
+		if ( size + size_mod != 0) {
 			updated.add(makeIndel(pos, size + size_mod, new_indel.get(2), new_indel.get(3)));		
 		}		
 		
@@ -345,7 +346,24 @@ public final class SimpleSequence implements Sequence {
 					int idB = indelB.get(3);
 					int signB = (int) Math.signum(indelB.get(1));		
 					//if (idA == idB && posB >= posA && posB <= posA+sizeA) 
-					if (idA == idB && posB >= posA && posB <= posA+sizeA && signA == signB && signA > 0) {
+					if (posA == posB && signA == signB && signA < 0) {
+						//two deletions can be made one
+						List<Integer> mergedIndel = new ArrayList<Integer>();					
+						mergedIndel.add(posA);
+						mergedIndel.add((sizeA + sizeB)*signA);
+						mergedIndel.add(indelA.get(2));
+						int modifier = (idA + idB)/2;
+						mergedIndel.add(modifier);
+						
+						merged.remove(i);
+						merged.remove(j-1);
+						merged.add(mergedIndel);								
+						
+						modified = true;
+						break outerloop;							
+						
+						
+					} else if (idA == idB && posB >= posA && posB <= posA+sizeA && signA == signB && signA > 0) {
 						//there is an overlap, can merge
 						List<Integer> mergedIndel = new ArrayList<Integer>();					
 						mergedIndel.add(posA);
@@ -402,6 +420,7 @@ public final class SimpleSequence implements Sequence {
 		return merged;
 	}
 	
+		
 	public boolean deleteSubSequence(int pos, int count) {
 		// assert that insert preserved frame...
 		assert (states.length % 3) == 0: "States.length not divisible by 3, pos = " + pos;
@@ -427,11 +446,10 @@ public final class SimpleSequence implements Sequence {
 
 		System.out.println("Pre-updating indel list after deletion:");
 		System.out.println(this.indelList);
-		System.out.println(indel);
+		System.out.println("");	
 		this.indelList = updateIndels(this.indelList, pos, -count, indel);	
-		System.out.println("Post-updating indel list after deletion:");
-		System.out.println(this.indelList);
-		System.out.println("");
+		
+		
 		
 		if (pos - translation < 0) {
 			System.out.println("OH POESSSSSS");
@@ -468,8 +486,7 @@ public final class SimpleSequence implements Sequence {
 		
 		return sum;
 	}
-	
-	
+		
 	public boolean insertSequence(int start, SimpleSequence source) {
 		// allocate more space and copy the old contents
 		// assert that insert preserved frame...
@@ -496,15 +513,13 @@ public final class SimpleSequence implements Sequence {
 		//adding unique identifier to indel event
 		IndelCounter indelcount = IndelCounter.INSTANCE.getInstance();
 		indelcount.addCount();		
-		indel.add(indelcount.getCount());
+		indel.add(indelcount.getCount());	
 		
 		System.out.println("Pre-updating indel list after insertion:");
 		System.out.println(this.indelList);
-		System.out.println(indel);
+		System.out.println("");		
 		this.indelList = updateIndels(this.indelList, pos, size, indel);
-		System.out.println("Post-updating indel list after insertion:");
-		System.out.println(this.indelList);
-		System.out.println("");
+		
 			
 		//this.indelList.add(indel);	
 		//this.indelList = mergeOverlaps(this.indelList);	
@@ -795,12 +810,14 @@ public final class SimpleSequence implements Sequence {
 		private List<List<Integer>> sortedIndels1;
 		private List<List<Integer>> sortedIndels2;
 		private List<Integer> breakPointsList;
+		private List<Integer> unrefinedHomologousBreaks;
 		private List<Integer> homologousBreakPointsList;
 		int[] parentLengths;		
 		private int del_shift;
 		
 		public indelCollection(List<List<Integer>> parent1indels, List<List<Integer>> parent2indels, SortedSet<Integer> breakPoints, int[] parentLengths) {	
-			this.del_shift = 0;
+			this.del_shift = 1;
+			this.unrefinedHomologousBreaks = new ArrayList<Integer>();
 			this.indels1 = new ArrayList<List<Integer>>(parent1indels);		
 			this.indels2 = new ArrayList<List<Integer>>(parent2indels);	
 			//this.updatedIndels1 =  new ArrayList<List<Integer>>(updatePositions(indels1));
@@ -854,10 +871,11 @@ public final class SimpleSequence implements Sequence {
 					int updated_pos = startIndel.get(0);
 					int size = Math.abs(startIndel.get(1));
 					int sign = (int) Math.signum(startIndel.get(1));
-					int unique_id = startIndel.get(3);						
-							
-						
-					if (start <= updated_pos && ((sign > 0 && updated_pos + size <= end) || 
+					int unique_id = startIndel.get(3);		
+					int unrefined_bp = this.unrefinedHomologousBreaks.get(0);	
+					
+					
+					if ((start <= updated_pos || (sign < 0 && type==2 && updated_pos == unrefined_bp)) && ((sign > 0 && updated_pos + size <= end) || 
 													(sign < 0 && ((updated_pos < end && type==0) || (updated_pos <= end && type==2)))))  {
 						//Indel cleanly within block
 						if (sign > 0 || updated_pos > start) {
@@ -869,17 +887,19 @@ public final class SimpleSequence implements Sequence {
 							newIndel.add(-3);	
 							
 							selectedIndels.add(newIndel);
-						} else if (sign < 0 && updated_pos == start) {							
+						} else if (sign < 0 && (updated_pos == start || updated_pos == unrefined_bp)) {							
 							
-							if (del_shift < 0) {
-								List<Integer> newIndel = new ArrayList<Integer>();
-								newIndel.add(start);
-								newIndel.add(del_shift);
-								newIndel.add(startIndel.get(2) - shift_diff - (size + del_shift));					
-								newIndel.add(unique_id);	
-								newIndel.add(-4);
-								
-								selectedIndels.add(newIndel);
+							if (del_shift < 1 && type==2) {
+								if (del_shift < 0) {
+									List<Integer> newIndel = new ArrayList<Integer>();
+									newIndel.add(updated_pos - shift_diff );
+									newIndel.add(del_shift);
+									newIndel.add(startIndel.get(2) - shift_diff);					
+									newIndel.add(unique_id);	
+									newIndel.add(-4);
+									
+									selectedIndels.add(newIndel);
+								}								
 							} else {
 								List<Integer> newIndel = new ArrayList<Integer>();
 								newIndel.add(updated_pos - shift_diff);
@@ -953,11 +973,13 @@ public final class SimpleSequence implements Sequence {
 				if (updated_pos < bp_pos && updated_pos >= 0) {				
 					if (hard) {
 						if (sign < 0) {
-							if (updated_pos + size <= bp_pos) {
+							if (updated_pos + size < bp_pos) {
 								frameshift = frameshift + size*sign;											
 								bp_pos = bp_pos + size*sign;
 							} else {
-								this.del_shift = (updated_pos + size - bp_pos)*sign;	
+								this.del_shift = (updated_pos + size - bp_pos)*sign;
+								System.out.println("Del shift: ");
+								System.out.println(this.del_shift);
 								frameshift = frameshift + (bp_pos - updated_pos)*sign;		
 								bp_pos = bp_pos + (bp_pos - updated_pos)*sign;									
 							}								
@@ -965,7 +987,8 @@ public final class SimpleSequence implements Sequence {
 						} else {
 							frameshift = frameshift + size*sign;											
 							bp_pos = bp_pos + size*sign;																		
-						}			
+						}	
+						
 					}
 					else {
 						if (sign < 0) {
@@ -1045,7 +1068,9 @@ public final class SimpleSequence implements Sequence {
 				
 				int homo_bp = calcHomoBreakPoint(bp, sortedIndels1, sortedIndels2);		
 				System.out.println("Unrefined homo bp: " + (homo_bp));
-				homo_bp = refineBP(bp, homo_bp);				
+				this.unrefinedHomologousBreaks.add(homo_bp);
+				homo_bp = refineBP(bp, homo_bp);	
+				
 				homo_bp = Math.min(homo_bp, this.parentLengths[1]);		
 				if (homo_bp < 0) {
 					homo_bp = 0;
@@ -1085,7 +1110,7 @@ public final class SimpleSequence implements Sequence {
 			//included if == start only start = 0. included if end == end only if end == genomelength
 			updated_indels1 =  selectIndels(indels1, updated_indels1, 0, breakPoints_with_end.get(0), 0, 0);
 			updated_indels2 =  selectIndels(indels2, updated_indels2, homoBreakPoints_with_end.get(0),  parentLengths[1],  homoBreakPoints_with_end.get(0) - breakPoints_with_end.get(0), 2);
-			this.del_shift = 0;
+			this.del_shift = 1;
 			List<List<Integer>> merged_indels =  new ArrayList<List<Integer>>();	
 			merged_indels.addAll(updated_indels1);
 			merged_indels.addAll(updated_indels2);
@@ -1139,8 +1164,14 @@ public final class SimpleSequence implements Sequence {
 		List<Integer> homologousBreakPoints = new ArrayList<Integer>(indels.getHomologousBreakPoints());
 		//List<Integer> homologousBreakPoints = 
 		//homologousBreakPoints = calcHomologousBreakpoints();
+		int recombinant_len = 0;
+		int bp_size = homologousBreakPoints.size();
+		if (bp_size == 1) {
+			recombinant_len = parents[1].getLength() - (homologousBreakPoints.get(0) - listBreakPoints.get(0));
+		} else {
+			recombinant_len = parents[0].getLength() - (homologousBreakPoints.get(1) - listBreakPoints.get(1));
+		}
 		
-		int recombinant_len = parents[1].getLength() - (homologousBreakPoints.get(0) - listBreakPoints.get(0));
 
 		int lastBreakPoint = 0;		// previous recombination location
 		int currentSeq = 0;			// index of currently selected parent
@@ -1153,9 +1184,19 @@ public final class SimpleSequence implements Sequence {
 		String parent1 = parents[0].getNucleotides();
 		String parent2 = parents[1].getNucleotides();				
 		
-		System.out.println("Breakpoint = " + listBreakPoints.get(0));
-		System.out.println(parent1.substring(0, listBreakPoints.get(0)) + "|" + parent1.substring(listBreakPoints.get(0)));
-		System.out.println(parent2.substring(0, homologousBreakPoints.get(0)) + "|" + parent2.substring(homologousBreakPoints.get(0)));	
+		if (bp_size == 1) {
+			System.out.println("Breakpoint = " + listBreakPoints.get(0));
+			System.out.println(parent1.substring(0, listBreakPoints.get(0)) + "|" + parent1.substring(listBreakPoints.get(0)));
+			System.out.println(parent2.substring(0, homologousBreakPoints.get(0)) + "|" + parent2.substring(homologousBreakPoints.get(0)));	
+		} else {
+			System.out.println("Breakpoint1 = " + listBreakPoints.get(0));
+			System.out.println("Breakpoint2 = " + listBreakPoints.get(1));
+			System.out.println(parent1.substring(0, listBreakPoints.get(0)) + "|" + 
+					parent1.substring(listBreakPoints.get(0), listBreakPoints.get(1)) + "|" + parent1.substring(listBreakPoints.get(1)));
+			System.out.println(parent1.substring(0, homologousBreakPoints.get(0)) + "|" + 
+					parent1.substring(homologousBreakPoints.get(0), homologousBreakPoints.get(1)) + "|" + parent1.substring(homologousBreakPoints.get(1)));
+		}
+		
 		
 		int counter = 0;
 		for (int nextBreakPoint : breakPoints) {				
@@ -1172,7 +1213,7 @@ public final class SimpleSequence implements Sequence {
 		}
 		
 		System.arraycopy(seq.states, lastBreakPoint, 
-						 dest, breakPoints.last(), parents[1].getLength()-lastBreakPoint);
+						 dest, breakPoints.last(), seq.getLength()-lastBreakPoint);
 		
 		String recombinant = product.getNucleotides();		
 		System.out.println(recombinant.substring(0, breakPoints.last()) + "|" + recombinant.substring(breakPoints.last()));		

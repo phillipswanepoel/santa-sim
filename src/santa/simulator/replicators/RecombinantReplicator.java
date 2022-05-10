@@ -85,8 +85,8 @@ public class RecombinantReplicator implements Replicator {
 				nbreaks = 1;
 			}
 			else {
-				//nbreaks = 2;
-				nbreaks = 1;
+				nbreaks = 2;
+				//nbreaks = 1;
 			}
 			
 			// Then draw the positions.

@@ -544,7 +544,7 @@ public class AlignmentSampler implements Sampler {
     static class LengthComparator2 implements Comparator<List<Integer>> {
         public int compare(final List<Integer> list1, final List<Integer> list2) {        
             if (list1.get(0) == list2.get(0)) {
-                return Integer.compare(list1.get(0), list2.get(0));
+                return Integer.compare(list1.get(1), list2.get(1));
             }
             else {
                 return Integer.compare(list1.get(0), list2.get(0));
