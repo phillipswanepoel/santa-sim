@@ -442,11 +442,7 @@ public class AlignmentSampler implements Sampler {
         List<String> inserted_strings = new ArrayList<String>(genomeStringsList);     
         List<Insert_Event> sorted_events = new ArrayList<Insert_Event>();
         
-        for (String s : inserted_strings) {
-        	System.out.println(s);
-        }
-        System.out.println("");
-        
+              
         for (Insert_Event event: insertion_map.values()) {
         	sorted_events.add(event);
         }      
@@ -473,9 +469,7 @@ public class AlignmentSampler implements Sampler {
         	HashMap<Integer, String> virus_strings = event.get_virus_string_map();
         	HashMap<Integer, Integer> virus_sizes = event.get_virus_size_map(); 
         	
-        	System.out.println(virus_strings);
-        	System.out.println(virus_sizes);
-
+        	
             List<Integer> indel = new ArrayList<Integer>(event.getIns());
             int pos = event.getPos();
             int size = indel.get(1);           
@@ -483,11 +477,7 @@ public class AlignmentSampler implements Sampler {
             Set<Integer> affected = event.getViruses();   
             int max_size = event.getMaxSize();
             
-            System.out.println(pos);   
-            System.out.println(max_size);           
-            System.out.println(event.getSubseq());                 
-            System.out.println("");
-            
+                       
 
             for (int p = 0; p < inserted_strings.size(); p++) {
             	//THIS LOOP ALMOST CERTAINLY SOURCE OF SOME ISSUES
@@ -511,8 +501,7 @@ public class AlignmentSampler implements Sampler {
                     	} else {
                     		//if offset is negative type, need to insert gaps BEFORE inserted substring, not after
                     		new_string = addGaps(new_string, pos + gaps + inserted_nucleotides, max_size - size);
-                    		System.out.println("HOLY SHIT IT HAPPENED");
-                    		System.out.println(subseq);
+                    		
                     	}
                     	
                     	gaps_added.put(p, gaps + max_size - size);
@@ -595,13 +584,8 @@ public class AlignmentSampler implements Sampler {
                 String genomeString = virus.getGenome().getSequence().getNucleotides();
                                
                 List<List<Integer>> indelsList = new ArrayList<List<Integer>>(virus.getGenome().getSequence().getIndelList());                
-                indelsList = sortIndelsByPosition(indelsList);
-                System.out.println("> " + i);
-                //System.out.println(indelsList);    
-               // System.out.println("");           
-
-                //System.out.println("GENOME: " + Integer.toString(counter+1)); 
-                //System.out.println(indelsList);              
+                indelsList = sortIndelsByPosition(indelsList);     
+                       
                 Collections.reverse(indelsList); 
                 
                 genomeString = remove_indels(genomeString, indelsList, counter);
@@ -676,11 +660,9 @@ public class AlignmentSampler implements Sampler {
       
               
         //Printing recombination events that are seen in sample
-        try {
-
-            //System.out.println("LENGTH: ");
+        try {           
             endLength = finalStringsList.get(0).length();
-            //System.out.println(endLength);
+            
 
             PrintStream recombPrinter = new PrintStream("recombination_events.txt");
             recombPrinter.println("EventNum*Breakpoints*Generation*Recombinant*Parents");

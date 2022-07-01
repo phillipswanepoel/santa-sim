@@ -282,12 +282,7 @@ public final class SimpleSequence implements Sequence {
 							//if some of the insertion has survived, need to add this remaining fragment							
 							updated.add(makeIndel(pos, size_remaining, indel.get(2) + (pos - old_pos), indel.get(3)));		
 							size_mod += old_size - size_remaining;
-						} else {
-							System.out.println("WOAH");
-							System.out.println(indel);
-							System.out.println(new_indel);
-							System.out.println(getNucleotides());
-							System.out.println("-");		
+						} else {							
 							size_mod += old_size;
 						}
 						
@@ -443,38 +438,17 @@ public final class SimpleSequence implements Sequence {
 		IndelCounter indelcount = IndelCounter.INSTANCE.getInstance();
 		indelcount.addCount();		
 		indel.add(indelcount.getCount());
-
-		System.out.println("Pre-updating indel list after deletion:");
-		System.out.println(this.indelList);
-		System.out.println("");	
+	
 		this.indelList = updateIndels(this.indelList, pos, -count, indel);	
-		
-		
-		
+				
 		if (pos - translation < 0) {
 			System.out.println("OH POESSSSSS");
 			System.out.println(getNucleotides());
 			System.out.println(this.indelList);
 			System.out.println(indel);
 			System.exit(0);
-		} else if (pos - translation > 18) {
-			System.out.println("OH POESSSSSS, groter as 18");
-			System.out.println(getNucleotides());
-			System.out.println(this.indelList);
-			System.out.println(indel);
-			System.exit(0);
-		}		
-		
-		if (18 + countNetChange(this.indelList) != states.length) {
-			System.out.println("------------------------------------");
-			System.out.println("WARREFOK? indel list helemal verkeerd na deletion");
-			System.out.println(getNucleotides());			
-			System.out.println("length calculated: " + countNetChange(this.indelList) );
-			System.out.println("actual: " + (states.length - 18));	
-			System.out.println("----------------------------------");
-			System.exit(0);
-		}
-		
+		}	
+			
 		return(true);
 	}
 	
@@ -513,13 +487,9 @@ public final class SimpleSequence implements Sequence {
 		//adding unique identifier to indel event
 		IndelCounter indelcount = IndelCounter.INSTANCE.getInstance();
 		indelcount.addCount();		
-		indel.add(indelcount.getCount());	
-		
-		System.out.println("Pre-updating indel list after insertion:");
-		System.out.println(this.indelList);
-		System.out.println("");		
-		this.indelList = updateIndels(this.indelList, pos, size, indel);
-		
+		indel.add(indelcount.getCount());			
+			
+		this.indelList = updateIndels(this.indelList, pos, size, indel);		
 			
 		//this.indelList.add(indel);	
 		//this.indelList = mergeOverlaps(this.indelList);	
@@ -530,23 +500,7 @@ public final class SimpleSequence implements Sequence {
 			System.out.println(this.indelList);
 			System.out.println(indel);
 			System.exit(0);
-		} else if (pos - translation > 18) {
-			System.out.println("OH POES, groter as 18");
-			System.out.println(getNucleotides());
-			System.out.println(this.indelList);
-			System.out.println(indel);
-			System.exit(0);
-		}	
-		
-		if (18 + countNetChange(this.indelList) != states.length) {
-			System.out.println("------------------------------------");
-			System.out.println("WARREFOK? indel list helemal verkeerd na insertion");
-			System.out.println(getNucleotides());			
-			System.out.println("length calculated: " + countNetChange(this.indelList) );
-			System.out.println("actual: " + (states.length - 18));			
-			System.out.println("----------------------------------");
-			System.exit(0);
-		}
+		}		
 		
 		return(true);
 	}
@@ -875,8 +829,8 @@ public final class SimpleSequence implements Sequence {
 					int unrefined_bp = this.unrefinedHomologousBreaks.get(0);	
 					
 					
-					if ((start <= updated_pos || (sign < 0 && type==2 && updated_pos == unrefined_bp)) && ((sign > 0 && updated_pos + size <= end) || 
-													(sign < 0 && ((updated_pos < end && type==0) || (updated_pos <= end && type==2)))))  {
+					if ((start <= updated_pos || (sign < 0 && (type== 1 || type == 2) && updated_pos == unrefined_bp)) && ((sign > 0 && updated_pos + size <= end) || 
+													(sign < 0 && ((updated_pos < end && (type==0 || type==2)) || (updated_pos <= end && (type==1 || type ==3))))))  {
 						//Indel cleanly within block
 						if (sign > 0 || updated_pos > start) {
 							List<Integer> newIndel = new ArrayList<Integer>();
@@ -889,7 +843,7 @@ public final class SimpleSequence implements Sequence {
 							selectedIndels.add(newIndel);
 						} else if (sign < 0 && (updated_pos == start || updated_pos == unrefined_bp)) {							
 							
-							if (del_shift < 1 && type==2) {
+							if (del_shift < 1 && (type==1 || type == 2)) {
 								if (del_shift < 0) {
 									List<Integer> newIndel = new ArrayList<Integer>();
 									newIndel.add(updated_pos - shift_diff );
@@ -977,9 +931,7 @@ public final class SimpleSequence implements Sequence {
 								frameshift = frameshift + size*sign;											
 								bp_pos = bp_pos + size*sign;
 							} else {
-								this.del_shift = (updated_pos + size - bp_pos)*sign;
-								System.out.println("Del shift: ");
-								System.out.println(this.del_shift);
+								this.del_shift = (updated_pos + size - bp_pos)*sign;								
 								frameshift = frameshift + (bp_pos - updated_pos)*sign;		
 								bp_pos = bp_pos + (bp_pos - updated_pos)*sign;									
 							}								
@@ -1016,10 +968,6 @@ public final class SimpleSequence implements Sequence {
 		//calcShiftDiff(bp, indels1, indels2, updatedIndels1, updatedIndels2)
 		private int calcHomoBreakPoint(int pos, List<List<Integer>> indels1_sorted, List<List<Integer>> indels2_sorted) {
 			//calculates difference in frameshift between two sequences (caused by indels) up to a certain nucleotide position	
-			
-			System.out.println("---------------------------------------");		
-			System.out.println(indels1_sorted);
-			System.out.println(indels2_sorted);	
 			
 			int frameshift1 = calcFrameShift(pos, indels1_sorted, false);
 			int frameshift2 = calcFrameShift(Math.max(pos - frameshift1, 0), indels2_sorted, true);			
@@ -1062,20 +1010,18 @@ public final class SimpleSequence implements Sequence {
 		}
 		
 		public List<Integer> getHomologousBreakPoints() {
-			List<Integer> homologousBreakPoints = new ArrayList<Integer>();
+			List<Integer> homologousBreakPoints = new ArrayList<Integer>();		
 			
 			for (int bp: breakPointsList) {
 				
-				int homo_bp = calcHomoBreakPoint(bp, sortedIndels1, sortedIndels2);		
-				System.out.println("Unrefined homo bp: " + (homo_bp));
+				int homo_bp = calcHomoBreakPoint(bp, sortedIndels1, sortedIndels2);						
 				this.unrefinedHomologousBreaks.add(homo_bp);
 				homo_bp = refineBP(bp, homo_bp);	
 				
 				homo_bp = Math.min(homo_bp, this.parentLengths[1]);		
 				if (homo_bp < 0) {
 					homo_bp = 0;
-				}
-				System.out.println("Refined homo bp: " + (homo_bp));
+				}				
 				homologousBreakPoints.add(homo_bp);				
 			}		
 			
@@ -1086,63 +1032,66 @@ public final class SimpleSequence implements Sequence {
 		public List<List<Integer>> getNewIndelList() {		
 			List<List<Integer>> updated_indels1 = new ArrayList<List<Integer>>(updatedIndels1);
 			List<List<Integer>> updated_indels2 =  new ArrayList<List<Integer>>(updatedIndels2);
+			List<List<Integer>> updated_indels3 =  new ArrayList<List<Integer>>(updatedIndels1);
 			//Now use the updated lists to merge them according to breakpoints
 			//Need to add consideration for end of sequence as breakpoint
 			List<Integer> breakPoints_with_end = new ArrayList<Integer>(breakPointsList);
-			List<Integer> homoBreakPoints_with_end = new ArrayList<Integer>(homologousBreakPointsList);
+			List<Integer> homoBreakPoints_with_end = new ArrayList<Integer>(homologousBreakPointsList);			
 			
-			int recombinant_len = parentLengths[1] - (homologousBreakPointsList.get(0) - breakPointsList.get(0));			
 			//Length of recombinant is as follows:
 			//parents are sorted such that parent1 < parent2
-			//if only 1 breakpoint, len == parent2
-			//if 2 breakpoints, len == parent1
-			if (breakPointsList.size() == 1) {
-				breakPoints_with_end.add(recombinant_len);
-				homoBreakPoints_with_end.add(recombinant_len);
+			int recombinant_len = 0;
+			int bp_size = homologousBreakPointsList.size();
+			if (bp_size == 1) {
+				recombinant_len = parentLengths[1] - (homologousBreakPointsList.get(0) - breakPointsList.get(0));
 			} else {
-				breakPoints_with_end.add(this.parentLengths[0]);
-				homoBreakPoints_with_end.add(this.parentLengths[0]);
-			}				
+				recombinant_len = parentLengths[0] - (homologousBreakPointsList.get(1) - breakPointsList.get(1));
+			}			
+			
+			breakPoints_with_end.add(recombinant_len);
+			homoBreakPoints_with_end.add(recombinant_len);
+			List<List<Integer>> merged_indels =  new ArrayList<List<Integer>>();		
 			//Looping through breakpoints and adding indels that fall between consecutive ones	
 			//selectIndels(List<List<Integer>> oldList, List<List<Integer>> currentList, int start, int end, int shift_diff)
 			
 			//For very start of genome and very end, deletions should been handled somewhat differently
 			//included if == start only start = 0. included if end == end only if end == genomelength
-			updated_indels1 =  selectIndels(indels1, updated_indels1, 0, breakPoints_with_end.get(0), 0, 0);
-			updated_indels2 =  selectIndels(indels2, updated_indels2, homoBreakPoints_with_end.get(0),  parentLengths[1],  homoBreakPoints_with_end.get(0) - breakPoints_with_end.get(0), 2);
-			this.del_shift = 1;
-			List<List<Integer>> merged_indels =  new ArrayList<List<Integer>>();	
-			merged_indels.addAll(updated_indels1);
-			merged_indels.addAll(updated_indels2);
-			
-			for (List<Integer> indel: merged_indels) {
-				int pos = indel.get(0);
-				int trans = indel.get(2);
+			if (bp_size == 1) {
+				updated_indels1 =  selectIndels(indels1, updated_indels1, 0, breakPoints_with_end.get(0), 0, 0);
+				updated_indels2 =  selectIndels(indels2, updated_indels2, homoBreakPoints_with_end.get(0),  
+						parentLengths[1],  homoBreakPoints_with_end.get(0) - breakPoints_with_end.get(0), 1);	
+				merged_indels.addAll(updated_indels1);
+				merged_indels.addAll(updated_indels2);				
+			} else {
+				updated_indels1 =  selectIndels(indels1, updated_indels1, 0, breakPoints_with_end.get(0), 0, 0);
+				updated_indels2 =  selectIndels(indels2, updated_indels2, homoBreakPoints_with_end.get(0),  
+						homoBreakPoints_with_end.get(1),  homoBreakPoints_with_end.get(0) - breakPoints_with_end.get(0), 2);
 				
-				if (pos - trans < 0 || pos - trans > 18) {
-					System.out.println("OH POES, select failed");
-					System.out.println(indel);
-					System.exit(0);
-				}
+				int length_diff = (homologousBreakPointsList.get(1) - homologousBreakPointsList.get(0)) - 
+						(breakPointsList.get(1) - breakPointsList.get(0));
+				
+				updated_indels3 = selectIndels(indels1, updated_indels3, breakPoints_with_end.get(1), parentLengths[0], 
+						length_diff, 3);		
+					
+				merged_indels.addAll(updated_indels1);
+				merged_indels.addAll(updated_indels2);
+				merged_indels.addAll(updated_indels3);
 			}
 			
-			merged_indels = sortIndelsByPosition(merged_indels);
-			System.out.println("");
-			System.out.println("PRE MERGER: ");
-			System.out.println(merged_indels);
-			merged_indels = mergeOverlaps(merged_indels);
-			System.out.println("POST MERGER: ");
-			System.out.println(merged_indels);
+			this.del_shift = 1;
+			
+			
+			for (List<Integer> indel: merged_indels) {
+				int pos = indel.get(0);
+				int trans = indel.get(2);	
+			}
+			
+			merged_indels = sortIndelsByPosition(merged_indels);	
+			merged_indels = mergeOverlaps(merged_indels);		
 			
 			for (List<Integer> indel: merged_indels) {
 				int pos = indel.get(0);
 				int trans = indel.get(2);
-				
-				if (pos - trans < 0 || pos - trans > 18) {
-					System.out.println("OH POES, merging failed");
-					System.out.println(indel);
-					System.exit(0);
-				}
 			}
 			
 			return merged_indels;
@@ -1169,7 +1118,8 @@ public final class SimpleSequence implements Sequence {
 		if (bp_size == 1) {
 			recombinant_len = parents[1].getLength() - (homologousBreakPoints.get(0) - listBreakPoints.get(0));
 		} else {
-			recombinant_len = parents[0].getLength() - (homologousBreakPoints.get(1) - listBreakPoints.get(1));
+			recombinant_len = parents[0].getLength() + 
+					((homologousBreakPoints.get(1) - homologousBreakPoints.get(0)) -  (listBreakPoints.get(1) - listBreakPoints.get(0)));			
 		}
 		
 
@@ -1180,49 +1130,46 @@ public final class SimpleSequence implements Sequence {
 
 		byte[] dest = product.states;	// where to put the product
 		SimpleSequence seq = parents[currentSeq];
-		
-		String parent1 = parents[0].getNucleotides();
-		String parent2 = parents[1].getNucleotides();				
-		
-		if (bp_size == 1) {
-			System.out.println("Breakpoint = " + listBreakPoints.get(0));
-			System.out.println(parent1.substring(0, listBreakPoints.get(0)) + "|" + parent1.substring(listBreakPoints.get(0)));
-			System.out.println(parent2.substring(0, homologousBreakPoints.get(0)) + "|" + parent2.substring(homologousBreakPoints.get(0)));	
-		} else {
-			System.out.println("Breakpoint1 = " + listBreakPoints.get(0));
-			System.out.println("Breakpoint2 = " + listBreakPoints.get(1));
-			System.out.println(parent1.substring(0, listBreakPoints.get(0)) + "|" + 
-					parent1.substring(listBreakPoints.get(0), listBreakPoints.get(1)) + "|" + parent1.substring(listBreakPoints.get(1)));
-			System.out.println(parent1.substring(0, homologousBreakPoints.get(0)) + "|" + 
-					parent1.substring(homologousBreakPoints.get(0), homologousBreakPoints.get(1)) + "|" + parent1.substring(homologousBreakPoints.get(1)));
-		}
+			
 		
 		
+		int lastHomologous = 0;
 		int counter = 0;
 		for (int nextBreakPoint : breakPoints) {				
 			int homologousNextBreakPoint = homologousBreakPoints.get(counter);	
 			
-			System.arraycopy(seq.states, lastBreakPoint, 
-							 dest, lastBreakPoint, nextBreakPoint-lastBreakPoint);			
-			
-			lastBreakPoint = homologousNextBreakPoint;
+			if (counter == 1) {		
+				System.arraycopy(seq.states, lastHomologous, 
+						 dest, lastBreakPoint, homologousNextBreakPoint-lastHomologous);
+			} else {
+				System.arraycopy(seq.states, lastBreakPoint, 
+						 dest, lastBreakPoint, nextBreakPoint-lastBreakPoint);
+			}			
+									
+			//lastBreakPoint = homologousNextBreakPoint;
+			lastBreakPoint = nextBreakPoint;
+			lastHomologous = homologousNextBreakPoint;
 			homologousBreakPoints.add(lastBreakPoint);
 			currentSeq = 1 - currentSeq;
 			seq = parents[currentSeq];	
 			counter++;
 		}
 		
-		System.arraycopy(seq.states, lastBreakPoint, 
-						 dest, breakPoints.last(), seq.getLength()-lastBreakPoint);
+		if (counter == 2) {		
+			System.arraycopy(seq.states, breakPoints.last(), 
+					 dest, breakPoints.first() + (homologousBreakPoints.get(1) - homologousBreakPoints.get(0)), 
+					 seq.getLength()-breakPoints.last());
+		} else {			
+			System.arraycopy(seq.states, homologousBreakPoints.get(0), 
+					 dest, breakPoints.last(), seq.getLength()-homologousBreakPoints.get(0));
+		}
 		
-		String recombinant = product.getNucleotides();		
-		System.out.println(recombinant.substring(0, breakPoints.last()) + "|" + recombinant.substring(breakPoints.last()));		
+		
+		String recombinant = product.getNucleotides();				
 		
 		List<List<Integer>> newIndels = indels.getNewIndelList();
-		product.setIndelList(newIndels);
-		
-		//System.out.println("======");
-		//System.out.println(newIndels);		
+		product.setIndelList(newIndels);		
+	
 		
 		return(product);
 	}
