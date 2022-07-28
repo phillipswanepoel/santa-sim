@@ -89,22 +89,66 @@ public class RecombinantReplicator implements Replicator {
 				//nbreaks = 1;
 			}
 			
+			List<List<Integer>> parent1_indels = parents.get(0).getSequence().getIndelList();
+			List<List<Integer>> parent2_indels = parents.get(1).getSequence().getIndelList();
+			
+			SortedSet<Integer> indel_positions = new TreeSet<Integer>();
+			for (List<Integer> indel : parent1_indels) {
+				int start = indel.get(0);
+				int len = indel.get(1);				
+				
+				indel_positions.add(start);
+				
+				if (len > 0) {
+					for (int i = 1; i < len+1; i++) {
+						indel_positions.add(start + i);
+					}
+				}
+			}
+			for (List<Integer> indel : parent2_indels) {
+				int start = indel.get(0);
+				int len = indel.get(1);
+				
+				indel_positions.add(start);
+				
+				if (len > 0) {
+					for (int i = 1; i < len+1; i++) {
+						indel_positions.add(start + i);
+					}
+				}
+			}
+						
 			// Then draw the positions.
 			// Don't repeat a breakpoint, and only break at codon boundaries.
 			// Change: to ensure a breakpoint is actually selected:
 			// dont discard if bp%3!=0, rather add so that bp%3==0 always.
-			SortedSet<Integer> breakPoints = new TreeSet<Integer>();
-			for (int i = 0; i < nbreaks; i++) {
-				int bp = Random.nextInt(1, length-3);
-				if (bp % 3 == 0) {
-					breakPoints.add(bp);
-				}
-				else {
-					bp = bp + (3-(bp % 3));
-					breakPoints.add(bp);
-				}
+			SortedSet<Integer> breakPoints = new TreeSet<Integer>();			
+						
+			for (int i = 0; i < nbreaks; i++) {							
+				boolean valid = false;
+				
+				while (!valid) {
+					int bp = Random.nextInt(1, length-3);
+					
+					if (bp % 3 == 0) {
+						if (!(indel_positions.contains(bp))) {
+							breakPoints.add(bp);
+							valid = true;
+						} 
+					}
+					else {
+						bp = bp + (3-(bp % 3));
+						
+						if (!(indel_positions.contains(bp))) {
+							breakPoints.add(bp);
+							valid = true;
+						} 						
+					}
+				}	
 			}
-
+			
+			
+			
 			logger.finest("recombination: " + breakPoints.size() + "@" + breakPoints);			
 
 			// create the recombinant genome description

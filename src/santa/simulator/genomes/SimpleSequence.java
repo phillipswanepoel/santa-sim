@@ -92,7 +92,9 @@ public final class SimpleSequence implements Sequence {
 		states = new byte[length];
 
 		for (List<Integer> del: other.getIndelList()) {
-			this.indelList.add(del);
+			if ((del.get(0) > start) && (del.get(0) < start+length)) {
+				this.indelList.add(del);
+			}			
 		}			
 
 		copyNucleotides(0, other, start, start + length);
@@ -102,12 +104,14 @@ public final class SimpleSequence implements Sequence {
 		states = new byte[length];
 
 		for (List<Integer> del: other.getIndelList()) {
-			this.indelList.add(del);
+			if ((del.get(0) > start) && (del.get(0) < start+length)) {
+				this.indelList.add(del);
+			}	
 		}			
 
 		copyNucleotides(0, other, start, length);
 	}
-
+	
 	/* Override hashCode() and equals() so Sequence instamces can be
 	   used as keys in hash collections,
 	   e.g. Population::initialize().
@@ -1018,6 +1022,7 @@ public final class SimpleSequence implements Sequence {
 				this.unrefinedHomologousBreaks.add(homo_bp);
 				homo_bp = refineBP(bp, homo_bp);	
 				
+				
 				homo_bp = Math.min(homo_bp, this.parentLengths[1]);		
 				if (homo_bp < 0) {
 					homo_bp = 0;
@@ -1040,10 +1045,12 @@ public final class SimpleSequence implements Sequence {
 			
 			//Length of recombinant is as follows:
 			//parents are sorted such that parent1 < parent2
+			//listBreakPoints.get(0) + parents[1].getLength() - homologousBreakPoints.get(0)
 			int recombinant_len = 0;
 			int bp_size = homologousBreakPointsList.size();
 			if (bp_size == 1) {
-				recombinant_len = parentLengths[1] - (homologousBreakPointsList.get(0) - breakPointsList.get(0));
+				//recombinant_len = parentLengths[1] - (homologousBreakPointsList.get(0) - breakPointsList.get(0));
+				recombinant_len = breakPointsList.get(0) + parentLengths[1] - homologousBreakPointsList.get(0);
 			} else {
 				recombinant_len = parentLengths[0] - (homologousBreakPointsList.get(1) - breakPointsList.get(1));
 			}			
@@ -1079,20 +1086,10 @@ public final class SimpleSequence implements Sequence {
 			}
 			
 			this.del_shift = 1;
-			
-			
-			for (List<Integer> indel: merged_indels) {
-				int pos = indel.get(0);
-				int trans = indel.get(2);	
-			}
+				
 			
 			merged_indels = sortIndelsByPosition(merged_indels);	
-			merged_indels = mergeOverlaps(merged_indels);		
-			
-			for (List<Integer> indel: merged_indels) {
-				int pos = indel.get(0);
-				int trans = indel.get(2);
-			}
+			merged_indels = mergeOverlaps(merged_indels);	
 			
 			return merged_indels;
 
@@ -1100,10 +1097,10 @@ public final class SimpleSequence implements Sequence {
 		
 	}
 	
-
-    static SimpleSequence getRecombinantSequence(SimpleSequence[] parents, SortedSet<Integer> breakPoints) {
+    static SimpleSequence getRecombinantSeq(SimpleSequence[] parents, SortedSet<Integer> breakPoints) {
 	 	assert(parents.length == 2);
-		assert(parents[0].getLength() <= parents[1].getLength());
+		//assert(parents[0].getLength() <= parents[1].getLength());
+	 	int max_length = Math.max(parents[0].getLength(), parents[1].getLength());
 				
 		List<List<Integer>> indels1 = new ArrayList<List<Integer>>(parents[0].getIndelList());
 		List<List<Integer>> indels2 = new ArrayList<List<Integer>>(parents[1].getIndelList());
@@ -1111,12 +1108,14 @@ public final class SimpleSequence implements Sequence {
 		
 		List<Integer> listBreakPoints = new ArrayList<Integer>(indels.getBreakPoints());	
 		List<Integer> homologousBreakPoints = new ArrayList<Integer>(indels.getHomologousBreakPoints());
+		
 		//List<Integer> homologousBreakPoints = 
 		//homologousBreakPoints = calcHomologousBreakpoints();
 		int recombinant_len = 0;
 		int bp_size = homologousBreakPoints.size();
 		if (bp_size == 1) {
-			recombinant_len = parents[1].getLength() - (homologousBreakPoints.get(0) - listBreakPoints.get(0));
+			//recombinant_len = parents[1].getLength() - (homologousBreakPoints.get(0) - listBreakPoints.get(0));
+			recombinant_len = listBreakPoints.get(0) + parents[1].getLength() - homologousBreakPoints.get(0);
 		} else {
 			recombinant_len = parents[0].getLength() + 
 					((homologousBreakPoints.get(1) - homologousBreakPoints.get(0)) -  (listBreakPoints.get(1) - listBreakPoints.get(0)));			
@@ -1129,19 +1128,31 @@ public final class SimpleSequence implements Sequence {
 		SimpleSequence product = new SimpleSequence(recombinant_len);
 
 		byte[] dest = product.states;	// where to put the product
-		SimpleSequence seq = parents[currentSeq];
-			
+		SimpleSequence seq = parents[currentSeq];			
 		
+		/*
+		System.out.println("!");
+		System.out.println(recombinant_len);
+		System.out.println(listBreakPoints);
+		System.out.println(homologousBreakPoints);
+		System.out.println("-----------------");
+		System.out.println(parents[0].getLength());
+		System.out.println(parents[1].getLength());		
+		System.out.println("");
+		*/
 		
 		int lastHomologous = 0;
 		int counter = 0;
 		for (int nextBreakPoint : breakPoints) {				
 			int homologousNextBreakPoint = homologousBreakPoints.get(counter);	
-			
+			last_homo = homologousNextBreakPoint;
 			if (counter == 1) {		
+				//System.arraycopy(seq.states, lastHomologous, 
+						 //dest, lastBreakPoint, homologousNextBreakPoint-lastHomologous);
 				System.arraycopy(seq.states, lastHomologous, 
 						 dest, lastBreakPoint, homologousNextBreakPoint-lastHomologous);
 			} else {
+				//ERROR HAPPENS HERE
 				System.arraycopy(seq.states, lastBreakPoint, 
 						 dest, lastBreakPoint, nextBreakPoint-lastBreakPoint);
 			}			
@@ -1165,14 +1176,109 @@ public final class SimpleSequence implements Sequence {
 		}
 		
 		
-		String recombinant = product.getNucleotides();				
+		//String recombinant = product.getNucleotides();				
 		
 		List<List<Integer>> newIndels = indels.getNewIndelList();
-		product.setIndelList(newIndels);		
-	
+		product.setIndelList(newIndels);			
 		
 		return(product);
-	}
+	}	
+	
+static int last_homo;
+	
+    static SimpleSequence getRecombinantSequence(SimpleSequence[] parents, SortedSet<Integer> breakPoints) {
+	 	if (breakPoints.size() == 1) {
+	 		return getRecombinantSeq(parents, breakPoints);
+	 	} else {
+	 		
+	 		SortedSet<Integer> new_breaks = new TreeSet<Integer>();
+	 		new_breaks.add(breakPoints.first());
+	 		SimpleSequence seq1 = getRecombinantSeq(parents, new_breaks);
+	 		
+	 		new_breaks.clear();	 		
+	 		
+	 		int last_bp = breakPoints.last();
+	 		last_bp = Math.min(last_bp, seq1.getLength());	
+	 		new_breaks.add(last_bp);	 	
+	 		
+	 		SimpleSequence[] parents_rev = new SimpleSequence[] {seq1, parents[0]};
+	 		SimpleSequence final_seq = getRecombinantSeq(parents_rev, new_breaks);	
+	 		
+	 		
+	 		/*
+	 	 		
+	 		SimpleSequence new_parent0 = new SimpleSequence(parents[0], breakPoints.first(), parents[0].getLength()-breakPoints.first());
+	 		SimpleSequence new_parent1 = new SimpleSequence(parents[1], last_homo, parents[0].getLength()-last_homo);
+	 		SimpleSequence[] parents_rev = new SimpleSequence[] {new_parent1, new_parent0};
+	 		
+	 		first_break.clear();
+	 		int shift = breakPoints.first();
+	 		first_break.add(shift);
+	 		
+	 		List<List<Integer>> shifted_indels0 = new ArrayList<List<Integer>>();
+	 		for (List<Integer> indel : parents_rev[0].getIndelList()) {
+	 			List<Integer> shifted = new ArrayList<Integer>(indel);
+	 			shifted.set(0, shifted.get(0)-shift);
+	 			shifted_indels0.add(shifted);
+	 		}
+	 		new_parent0.setIndelList(shifted_indels0);
+	 		
+	 		shift = last_homo;
+	 		List<List<Integer>> shifted_indels1 = new ArrayList<List<Integer>>();
+	 		for (List<Integer> indel : parents_rev[1].getIndelList()) {
+	 			List<Integer> shifted = new ArrayList<Integer>(indel);
+	 			shifted.set(0, shifted.get(0)-shift);
+	 			shifted_indels1.add(shifted);
+	 		}
+	 		new_parent1.setIndelList(shifted_indels1);
+	 		
+	 		//need to find homologous breakpoint for breakpoint 2
+	 		first_break.clear();
+	 		first_break.add(breakPoints.last());
+	 		SimpleSequence throwaway_seq = getRecombinantSeq(parents, first_break);
+	 		int homobp2 = last_homo;
+	 		
+	 		first_break.clear();
+	 		first_break.add(homobp2 - shift);
+	 		
+	 		System.out.println(breakPoints);	 		
+	 		System.out.println(shift + ", " + homobp2);
+	 		System.out.println(homobp2 - shift);
+	 		System.out.println("-");
+	 		System.out.println(parents[1].getLength());
+	 		System.out.println(parents_rev[0].getLength());
+	 		System.out.println("*");
+	 		System.out.println(parents[0].getLength());
+	 		System.out.println(parents_rev[1].getLength());	 		
+	 		System.out.println("");
+	 		
+	 		SimpleSequence seq2 = getRecombinantSeq(parents_rev, first_break);
+	 		
+	 		SimpleSequence seq1_first_block = new SimpleSequence(seq1, 0, breakPoints.first());
+	 		
+	 		//Now we have the final_seq = seq1_first_block + seq2
+	 		//just need to merge their indels, after re-shifing seq2
+	 		List<List<Integer>> final_shifted_indels = new ArrayList<List<Integer>>();
+	 		for (List<Integer> indel : seq2.getIndelList()) {
+	 			List<Integer> shifted = new ArrayList<Integer>(indel);
+	 			shifted.set(0, shifted.get(0)+shift);
+	 			final_shifted_indels.add(shifted);
+	 		}
+	 		seq2.setIndelList(final_shifted_indels);
+	 		
+	 		SimpleSequence final_seq = new SimpleSequence(seq1_first_block.getNucleotides() + seq2.getNucleotides());
+	 		List<List<Integer>> merged_indels = new ArrayList<List<Integer>>();
+	 		merged_indels.addAll(seq1_first_block.getIndelList());
+	 		merged_indels.addAll(seq2.getIndelList());
+	 		final_seq.setIndelList(merged_indels);
+	 		*/
+	 		
+	 		return final_seq;	 		
+	 		
+	 	}
+	}	
+	
+
 
 	public List<List<Integer>> getIndelList() {
         return indelList;
