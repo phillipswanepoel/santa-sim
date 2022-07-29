@@ -1109,6 +1109,7 @@ public final class SimpleSequence implements Sequence {
 		List<Integer> listBreakPoints = new ArrayList<Integer>(indels.getBreakPoints());	
 		List<Integer> homologousBreakPoints = new ArrayList<Integer>(indels.getHomologousBreakPoints());
 		
+				
 		//List<Integer> homologousBreakPoints = 
 		//homologousBreakPoints = calcHomologousBreakpoints();
 		int recombinant_len = 0;
@@ -1187,8 +1188,12 @@ public final class SimpleSequence implements Sequence {
 static int last_homo;
 	
     static SimpleSequence getRecombinantSequence(SimpleSequence[] parents, SortedSet<Integer> breakPoints) {
+    	homologous_breakpoints.clear();
+    	homologous_breakpoints.add(breakPoints.first());
+    	
 	 	if (breakPoints.size() == 1) {
 	 		return getRecombinantSeq(parents, breakPoints);
+	 		
 	 	} else {
 	 		
 	 		SortedSet<Integer> new_breaks = new TreeSet<Integer>();
@@ -1204,81 +1209,18 @@ static int last_homo;
 	 		SimpleSequence[] parents_rev = new SimpleSequence[] {seq1, parents[0]};
 	 		SimpleSequence final_seq = getRecombinantSeq(parents_rev, new_breaks);	
 	 		
-	 		
-	 		/*
-	 	 		
-	 		SimpleSequence new_parent0 = new SimpleSequence(parents[0], breakPoints.first(), parents[0].getLength()-breakPoints.first());
-	 		SimpleSequence new_parent1 = new SimpleSequence(parents[1], last_homo, parents[0].getLength()-last_homo);
-	 		SimpleSequence[] parents_rev = new SimpleSequence[] {new_parent1, new_parent0};
-	 		
-	 		first_break.clear();
-	 		int shift = breakPoints.first();
-	 		first_break.add(shift);
-	 		
-	 		List<List<Integer>> shifted_indels0 = new ArrayList<List<Integer>>();
-	 		for (List<Integer> indel : parents_rev[0].getIndelList()) {
-	 			List<Integer> shifted = new ArrayList<Integer>(indel);
-	 			shifted.set(0, shifted.get(0)-shift);
-	 			shifted_indels0.add(shifted);
-	 		}
-	 		new_parent0.setIndelList(shifted_indels0);
-	 		
-	 		shift = last_homo;
-	 		List<List<Integer>> shifted_indels1 = new ArrayList<List<Integer>>();
-	 		for (List<Integer> indel : parents_rev[1].getIndelList()) {
-	 			List<Integer> shifted = new ArrayList<Integer>(indel);
-	 			shifted.set(0, shifted.get(0)-shift);
-	 			shifted_indels1.add(shifted);
-	 		}
-	 		new_parent1.setIndelList(shifted_indels1);
-	 		
-	 		//need to find homologous breakpoint for breakpoint 2
-	 		first_break.clear();
-	 		first_break.add(breakPoints.last());
-	 		SimpleSequence throwaway_seq = getRecombinantSeq(parents, first_break);
-	 		int homobp2 = last_homo;
-	 		
-	 		first_break.clear();
-	 		first_break.add(homobp2 - shift);
-	 		
-	 		System.out.println(breakPoints);	 		
-	 		System.out.println(shift + ", " + homobp2);
-	 		System.out.println(homobp2 - shift);
-	 		System.out.println("-");
-	 		System.out.println(parents[1].getLength());
-	 		System.out.println(parents_rev[0].getLength());
-	 		System.out.println("*");
-	 		System.out.println(parents[0].getLength());
-	 		System.out.println(parents_rev[1].getLength());	 		
-	 		System.out.println("");
-	 		
-	 		SimpleSequence seq2 = getRecombinantSeq(parents_rev, first_break);
-	 		
-	 		SimpleSequence seq1_first_block = new SimpleSequence(seq1, 0, breakPoints.first());
-	 		
-	 		//Now we have the final_seq = seq1_first_block + seq2
-	 		//just need to merge their indels, after re-shifing seq2
-	 		List<List<Integer>> final_shifted_indels = new ArrayList<List<Integer>>();
-	 		for (List<Integer> indel : seq2.getIndelList()) {
-	 			List<Integer> shifted = new ArrayList<Integer>(indel);
-	 			shifted.set(0, shifted.get(0)+shift);
-	 			final_shifted_indels.add(shifted);
-	 		}
-	 		seq2.setIndelList(final_shifted_indels);
-	 		
-	 		SimpleSequence final_seq = new SimpleSequence(seq1_first_block.getNucleotides() + seq2.getNucleotides());
-	 		List<List<Integer>> merged_indels = new ArrayList<List<Integer>>();
-	 		merged_indels.addAll(seq1_first_block.getIndelList());
-	 		merged_indels.addAll(seq2.getIndelList());
-	 		final_seq.setIndelList(merged_indels);
-	 		*/
-	 		
+	 		homologous_breakpoints.add(last_homo);
+	 			 			
 	 		return final_seq;	 		
 	 		
 	 	}
 	}	
 	
-
+static SortedSet<Integer> homologous_breakpoints = new TreeSet<Integer>();
+ 
+ 	public SortedSet<Integer> get_homologous_breakpoints(){
+ 		return homologous_breakpoints;
+ 	}
 
 	public List<List<Integer>> getIndelList() {
         return indelList;

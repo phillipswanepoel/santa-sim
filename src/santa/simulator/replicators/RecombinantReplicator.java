@@ -158,6 +158,9 @@ public class RecombinantReplicator implements Replicator {
 			
 			Sequence recombinantSequence = getRecombinantSequence(parents, breakPoints);	
 			
+			SortedSet<Integer> homo_bps = recombinantSequence.get_homologous_breakpoints();			
+			
+			
 			Genome genome = genePool.createGenome(recombinantSequence, recombinantGenome);
 			
 	        SortedSet<Mutation> mutations = mutator.mutate(genome);
@@ -197,7 +200,7 @@ public class RecombinantReplicator implements Replicator {
 
 	            //Creating recombination event to store recombination information	            
 				//RecombinationEvent rec = new RecombinationEvent(genome, genome.getSequence().getNucleotides(), parents, parentSeqs, breakPoints, generation);
-				RecombinationEvent rec = new RecombinationEvent(genome, breakPoints, generation, parents);	
+				RecombinationEvent rec = new RecombinationEvent(genome, homo_bps, generation, parents);	
 				
 				//System.out.println("********************************");
 				int len = RecombinantTracker.recombinationList.size();
@@ -230,7 +233,21 @@ public class RecombinantReplicator implements Replicator {
                      
             LinkedHashSet<Integer> recombinations = vparents[0].getRecombinationList();          
 
-            SortedSet<Mutation> mutations = mutator.mutate(parentGenome);
+            SortedSet<Mutation> mutations = mutator.mutate(parentGenome);            
+                  
+            
+            for (Mutation mute : mutations) {            	
+            	if (mute instanceof santa.simulator.genomes.Insertion) {
+            		int len = mute.length();
+            		int pos = mute.getPosition();
+            		
+            	} else if (mute instanceof santa.simulator.genomes.Deletion) {
+            		int len = mute.length();
+            		int pos = mute.getPosition();
+            	}
+            }
+            
+            //go through the mutations set, check if type is insertion or deletion, and modify recomb list accordingly
               
             Genome genome = genePool.duplicateGenome(parentGenome, mutations, fitnessFunction);
 
@@ -239,6 +256,8 @@ public class RecombinantReplicator implements Replicator {
             virus.setRecombinationList(recombinations); 
             
         }
+        
+        
 
     }
 

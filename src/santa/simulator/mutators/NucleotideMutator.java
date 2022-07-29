@@ -143,8 +143,8 @@ public class NucleotideMutator extends AbstractMutator {
 					for (int i = 0; i < count; i++) {
 						states[i] = (byte) Random.nextInt(0,  3);
 					}
-					//SimpleSequence seq = new SimpleSequence(states);
-					SimpleSequence seq = new SimpleSequence(StringUtils.repeat("C", count));
+					SimpleSequence seq = new SimpleSequence(states);
+					//SimpleSequence seq = new SimpleSequence(StringUtils.repeat("C", count));
 					int pos = Random.nextInt(0, genome.getLength());	// start position
 					mutlogger.finest("insert: " + count + "@" + pos + " on len " + genome.getLength());
 					mutations.add(new Insertion(pos, seq));
