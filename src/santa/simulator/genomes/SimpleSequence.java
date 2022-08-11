@@ -1114,9 +1114,8 @@ public final class SimpleSequence implements Sequence {
 		//homologousBreakPoints = calcHomologousBreakpoints();
 		int recombinant_len = 0;
 		int bp_size = homologousBreakPoints.size();
-		if (bp_size == 1) {
-			//recombinant_len = parents[1].getLength() - (homologousBreakPoints.get(0) - listBreakPoints.get(0));
-			recombinant_len = listBreakPoints.get(0) + parents[1].getLength() - homologousBreakPoints.get(0);
+		if (bp_size == 1) {			
+			recombinant_len = listBreakPoints.get(0) + parents[1].getLength() - homologousBreakPoints.get(0);					
 			homologous_breakpoints.add(homologousBreakPoints.get(0));
 		} else {
 			recombinant_len = parents[0].getLength() + 
@@ -1146,8 +1145,7 @@ public final class SimpleSequence implements Sequence {
 		int lastHomologous = 0;
 		int counter = 0;
 		for (int nextBreakPoint : breakPoints) {				
-			int homologousNextBreakPoint = homologousBreakPoints.get(counter);	
-			last_homo = homologousNextBreakPoint;
+			int homologousNextBreakPoint = homologousBreakPoints.get(counter);			
 			if (counter == 1) {		
 				//System.arraycopy(seq.states, lastHomologous, 
 						 //dest, lastBreakPoint, homologousNextBreakPoint-lastHomologous);
@@ -1192,11 +1190,10 @@ static int last_homo;
     	homologous_breakpoints.clear();
     	
     	
-	 	if (breakPoints.size() == 1) {
+	 	if (breakPoints.size() == 1) {	 		
 	 		return getRecombinantSeq(parents, breakPoints);
 	 		
-	 	} else {	 		
-	 		homologous_breakpoints.add(breakPoints.first());
+	 	} else {		
 	 		
 	 		SortedSet<Integer> new_breaks = new TreeSet<Integer>();
 	 		new_breaks.add(breakPoints.first());
@@ -1211,8 +1208,7 @@ static int last_homo;
 	 		SimpleSequence[] parents_rev = new SimpleSequence[] {seq1, parents[0]};
 	 		SimpleSequence final_seq = getRecombinantSeq(parents_rev, new_breaks);	
 	 		
-	 		int final_bp = Math.min(last_homo, final_seq.getLength());
-	 		homologous_breakpoints.add(final_bp);
+	 		//int final_bp = Math.min(last_homo, final_seq.getLength());	 		
 	 			 			
 	 		return final_seq;	 		
 	 		

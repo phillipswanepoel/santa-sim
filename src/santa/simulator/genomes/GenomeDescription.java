@@ -155,7 +155,9 @@ public final class GenomeDescription {
 		assert(parents[0].genomeLength <= parents[1].genomeLength);
 		GenomeDescription gd = parents[currentGenome];
 		GenomeDescription gd_recomb = null;
-		for (int nextBreakPoint: breakPoints) {
+		int counter = 0;
+		for (int nextBreakPoint: breakPoints) {			
+			
 			gd = new GenomeDescription(parents[currentGenome], 0, -lastBreakPoint);
 			gd = new GenomeDescription(gd, nextBreakPoint-lastBreakPoint, -(parents[currentGenome].genomeLength - nextBreakPoint));
 
@@ -167,18 +169,22 @@ public final class GenomeDescription {
 			//lastBreakPoint = nextBreakPoint;
 			lastBreakPoint = homo_breakPoints.first();
 			currentGenome = 1 - currentGenome;
+			counter++;
 		}
-		if (homo_breakPoints.last() < parents[currentGenome].genomeLength) {
-			//gd = new GenomeDescription(parents[currentGenome], 0, -lastBreakPoint);
-			//gd = new GenomeDescription(parents[currentGenome], 0, -homo_breakPoints.last());	
-			gd = new GenomeDescription(parents[currentGenome], 0, -homo_breakPoints.last());
+		if (homo_breakPoints.last() < parents[currentGenome].genomeLength) {				
+			
+			if (counter==1) {
+				gd = new GenomeDescription(parents[currentGenome], 0, -homo_breakPoints.last());				
+			} else if (counter==2) {
+				gd = new GenomeDescription(parents[currentGenome], 0, -(homo_breakPoints.last() + breakPoints.first() - homo_breakPoints.first()) );				
+			}		
 			
 			if (gd_recomb == null)
 				gd_recomb = gd;
 			else {
 				gd_recomb.append(gd);
 			}
-		}
+		} 
 		
 		/*
 		System.out.println("GD Parent lengths: ");

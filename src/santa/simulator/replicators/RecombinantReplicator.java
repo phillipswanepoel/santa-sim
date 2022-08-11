@@ -85,8 +85,8 @@ public class RecombinantReplicator implements Replicator {
 				nbreaks = 1;
 			}
 			else {
-				//nbreaks = 2;
-				nbreaks = 1;
+				nbreaks = 2;
+				//nbreaks = 1;
 			}
 			
 			List<List<Integer>> parent1_indels = parents.get(0).getSequence().getIndelList();
@@ -154,14 +154,11 @@ public class RecombinantReplicator implements Replicator {
 			// create the recombinant genome description
 			GenomeDescription[] gd_parents = parents.stream().map(Genome::getDescription).toArray(GenomeDescription[]::new);
 
-			//GenomeDescription recombinantGenome = GenomeDescription.recombine(gd_parents, breakPoints);
-			//System.out.println("Parents lengths: ");
-			//System.out.println(parents.get(0).getLength());
-			//System.out.println(parents.get(1).getLength());
-			
+						
 			Sequence recombinantSequence = getRecombinantSequence(parents, breakPoints);	
+			
 			//System.out.println("Recombinant Seq length: ");
-			//System.out.println(recombinantSequence.getLength());
+			//System.out.println(recombinantSequence.getLength());			
 			
 			SortedSet<Integer> homo_bps = new TreeSet<Integer>(recombinantSequence.get_homologous_breakpoints());			
 			
@@ -169,7 +166,7 @@ public class RecombinantReplicator implements Replicator {
 			
 			//System.out.println("GD length2: ");
 			//System.out.println(recombinantGenome.getGenomeLength());
-			//System.out.println("");
+			//System.out.println("");			
 			
 			Genome genome = genePool.createGenome(recombinantSequence, recombinantGenome);
 			
@@ -179,15 +176,12 @@ public class RecombinantReplicator implements Replicator {
 	        for (Mutation mute : mutations) {            	
             	if (mute instanceof santa.simulator.genomes.Insertion) {
             		int len = mute.length();
-            		int pos = mute.getPosition();
+            		int pos = mute.getPosition();            		
             		
-            		//System.out.println("Insertion position = " + pos);
-            		//System.out.println("Insertion length = " + len);
             		
             		for (RecombinationEvent recEvent : old_rec_list) {
             			SortedSet<Integer> old_bps = recEvent.getBreakpoints();
-            			SortedSet<Integer> new_bps = new TreeSet<Integer>();
-            			//System.out.println("Old Breakpoints: " + old_bps);            			
+            			SortedSet<Integer> new_bps = new TreeSet<Integer>();            			          			
             			
             			for (int bp : old_bps) {
             				if (pos <= bp) {
@@ -228,25 +222,16 @@ public class RecombinantReplicator implements Replicator {
 
 
 	            newRecombinationList.addAll(recombinations0);
-	            newRecombinationList.addAll(recombinations1);
-	            //System.out.println("^^^");
-	            //System.out.println(newRecombinationList);
+	            newRecombinationList.addAll(recombinations1);	            
 	            virus.setRecombinationList(newRecombinationList); 
 
 	            //Creating recombination event to store recombination information	            
 				//RecombinationEvent rec = new RecombinationEvent(genome, genome.getSequence().getNucleotides(), parents, parentSeqs, breakPoints, generation);
-				RecombinationEvent rec = new RecombinationEvent(genome, homo_bps, generation, parents);	
-				
-				//System.out.println("********************************");
-				int len = RecombinantTracker.recombinationList.size();
-				//System.out.println(len);				
-
+				RecombinationEvent rec = new RecombinationEvent(genome, homo_bps, generation, parents);					
+				int len = RecombinantTracker.recombinationList.size();		
 				RecombinantTracker.recombinationList.add(rec);
 				virus.addRecombinationEvent(len);			
 
-				//System.out.println(virus.getRecombinationList());
-				//System.out.println("");
-				//System.out.println("");
 			}
 
         } else {
@@ -265,10 +250,7 @@ public class RecombinantReplicator implements Replicator {
             for (Mutation mute : mutations) {            	
             	if (mute instanceof santa.simulator.genomes.Insertion) {
             		int len = mute.length();
-            		int pos = mute.getPosition();
-            		
-            		//System.out.println("Insertion position = " + pos);
-            		//System.out.println("Insertion length = " + len);
+            		int pos = mute.getPosition();            		
             		
             		for (RecombinationEvent recEvent : old_rec_list) {
             			SortedSet<Integer> old_bps = recEvent.getBreakpoints();
@@ -281,13 +263,8 @@ public class RecombinantReplicator implements Replicator {
             				} else {
             					new_bps.add(bp);
             				}
-            			}
-            			
-            			//System.out.println("New Breakpoints: " + new_bps);            			
+            			}      			
             		}
-            		
-            		//System.out.println("==========================================");
-            		//System.out.println("");
             	}            	
             }
             
