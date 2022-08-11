@@ -449,6 +449,7 @@ public class AlignmentSampler implements Sampler {
      
         sorted_events = sortEventsByPosition(sorted_events);
         
+        /*
         System.out.println("");
         System.out.println("Events AFTER sorting: ");
         for (Insert_Event event: sorted_events) {
@@ -456,6 +457,7 @@ public class AlignmentSampler implements Sampler {
         }
         System.out.println("");
         System.out.println("");
+        */
         
         HashMap<Integer, Integer> gaps_added = new HashMap<Integer, Integer>();  
         HashMap<Integer, Integer> insertions_added = new HashMap<Integer, Integer>(); 
@@ -628,6 +630,36 @@ public class AlignmentSampler implements Sampler {
                 }         
 
             }  
+            
+            
+            //removing gap-only columns
+            int max_len = finalStringsList.get(0).length();
+            List<Integer> gap_only_columns = new ArrayList<Integer>();
+            
+            for (int k = max_len-1; k >= 0; k--) {
+            	boolean only_gaps = true;
+            	for (String seq: finalStringsList) {
+            		char char_at_k = seq.charAt(k);
+            		if (char_at_k != '-') {
+            			only_gaps = false;
+            		}
+            	}
+            	
+            	if (only_gaps == true) {
+            		gap_only_columns.add(k);
+            	}
+            }      
+            
+            for (int h = 0; h < finalStringsList.size(); h++) {
+            	StringBuilder new_seq = new StringBuilder(finalStringsList.get(h));
+            	
+            	for (int p : gap_only_columns) {
+            		new_seq.deleteCharAt(p);
+            	}
+            	
+            	finalStringsList.set(h, new_seq.toString());	
+            }
+
 
             for (int h = 0; h < finalStringsList.size(); h++) {
                 //destination.println(">" + nameList.get(h) + "_" + sample[h].getGenome() + "_" + list_eventsList.get(h));
@@ -657,8 +689,8 @@ public class AlignmentSampler implements Sampler {
             events.removeAll(events_to_remove);
         } 
         seenEvents.removeAll(events_to_remove);
-      
-              
+        
+                      
         //Printing recombination events that are seen in sample
         try {           
             endLength = finalStringsList.get(0).length();

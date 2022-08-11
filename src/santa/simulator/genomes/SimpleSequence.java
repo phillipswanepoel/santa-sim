@@ -1117,12 +1117,13 @@ public final class SimpleSequence implements Sequence {
 		if (bp_size == 1) {
 			//recombinant_len = parents[1].getLength() - (homologousBreakPoints.get(0) - listBreakPoints.get(0));
 			recombinant_len = listBreakPoints.get(0) + parents[1].getLength() - homologousBreakPoints.get(0);
+			homologous_breakpoints.add(homologousBreakPoints.get(0));
 		} else {
 			recombinant_len = parents[0].getLength() + 
 					((homologousBreakPoints.get(1) - homologousBreakPoints.get(0)) -  (listBreakPoints.get(1) - listBreakPoints.get(0)));			
 		}
 		
-
+				
 		int lastBreakPoint = 0;		// previous recombination location
 		int currentSeq = 0;			// index of currently selected parent
 		//int newlen = getRecombinantLength(parents, breakPoints);
@@ -1189,12 +1190,13 @@ static int last_homo;
 	
     static SimpleSequence getRecombinantSequence(SimpleSequence[] parents, SortedSet<Integer> breakPoints) {
     	homologous_breakpoints.clear();
-    	homologous_breakpoints.add(breakPoints.first());
+    	
     	
 	 	if (breakPoints.size() == 1) {
 	 		return getRecombinantSeq(parents, breakPoints);
 	 		
-	 	} else {
+	 	} else {	 		
+	 		homologous_breakpoints.add(breakPoints.first());
 	 		
 	 		SortedSet<Integer> new_breaks = new TreeSet<Integer>();
 	 		new_breaks.add(breakPoints.first());
@@ -1209,7 +1211,8 @@ static int last_homo;
 	 		SimpleSequence[] parents_rev = new SimpleSequence[] {seq1, parents[0]};
 	 		SimpleSequence final_seq = getRecombinantSeq(parents_rev, new_breaks);	
 	 		
-	 		homologous_breakpoints.add(last_homo);
+	 		int final_bp = Math.min(last_homo, final_seq.getLength());
+	 		homologous_breakpoints.add(final_bp);
 	 			 			
 	 		return final_seq;	 		
 	 		

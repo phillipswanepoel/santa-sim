@@ -88,6 +88,8 @@ public abstract class BaseGenome implements Genome {
 		if (f != null) {
 			int sites[] = descriptor.getGenomeSiteTable(descriptor.getFeature(feature.getName()));
 			nucleotides = new byte[sites.length];
+			
+			//System.out.println(sites[sites.length-1]);
 
 			int k = 0;
 			for (int i: sites) {

@@ -129,12 +129,16 @@ public final class GenomeDescription {
 	 * description object after applying an indel, and appending one
 	 * description to another.
 	 */
-	public static GenomeDescription recombine(GenomeDescription[] parents, SortedSet<Integer> breakPoints) {
+	public static GenomeDescription recombine(GenomeDescription[] parents, SortedSet<Integer> breakPoints, SortedSet<Integer> homo_breakPoints) {
 		/*
 		  Shortcut - if both parents are identical, then the recombined hybrid will have the same feature description.
 		*/
-		if (parents[0].equals(parents[1]))
+		
+		if (parents[0].equals(parents[1]) && (breakPoints.equals(homo_breakPoints))) {
+			//System.out.println("ITS THE SAME PARENT");
 			return parents[0];
+		}
+		
 		
 		/*
 		  The first call to applyIndel() below truncates
@@ -160,25 +164,37 @@ public final class GenomeDescription {
 			else {
 				gd_recomb.append(gd);
 			}
-			lastBreakPoint = nextBreakPoint;
+			//lastBreakPoint = nextBreakPoint;
+			lastBreakPoint = homo_breakPoints.first();
 			currentGenome = 1 - currentGenome;
 		}
-		if (lastBreakPoint < parents[currentGenome].genomeLength) {
-			gd = new GenomeDescription(parents[currentGenome], 0, -lastBreakPoint);
-
+		if (homo_breakPoints.last() < parents[currentGenome].genomeLength) {
+			//gd = new GenomeDescription(parents[currentGenome], 0, -lastBreakPoint);
+			//gd = new GenomeDescription(parents[currentGenome], 0, -homo_breakPoints.last());	
+			gd = new GenomeDescription(parents[currentGenome], 0, -homo_breakPoints.last());
+			
 			if (gd_recomb == null)
 				gd_recomb = gd;
 			else {
 				gd_recomb.append(gd);
 			}
 		}
-
+		
+		/*
+		System.out.println("GD Parent lengths: ");
+		System.out.println(parents[0].getGenomeLength());
+		System.out.println(parents[1].getGenomeLength());
+		System.out.println("Breakpoints: ");
+		System.out.println(breakPoints);
+		System.out.println("Homo Breakpoints: ");
+		System.out.println(homo_breakPoints);
+		*/
+		
 		GenomeDescription gd_cached = cache.get(gd_recomb);
-		if (gd_cached != null) {
+		if (gd_cached != null) {	
 			return(gd_cached);
 		} 
 		cache.put(gd_recomb, gd_recomb);
-					
 		return(gd_recomb);
 	}
 

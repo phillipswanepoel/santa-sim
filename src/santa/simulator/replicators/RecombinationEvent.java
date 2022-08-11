@@ -41,7 +41,9 @@ public class RecombinationEvent {
         this.parentalSequences = new ArrayList<String>();
     }
 
-
+    public void setBreakPoints(SortedSet<Integer> new_breakpoints) {
+    	this.breakpoints = new_breakpoints;
+    }
 
     public Genome getRecombinant() {
         return recombinant;
@@ -71,7 +73,7 @@ public class RecombinationEvent {
     private final String recombinantSequence;
     private final List<Genome> parents;
     private final List<String> parentalSequences;
-    private final SortedSet<Integer> breakpoints;
+    private SortedSet<Integer> breakpoints;
     private final int gen;
     
 }
