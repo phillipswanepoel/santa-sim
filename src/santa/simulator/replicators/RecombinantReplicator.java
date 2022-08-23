@@ -2,6 +2,7 @@ package santa.simulator.replicators;
 
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.LinkedHashSet; 
@@ -16,6 +17,7 @@ import santa.simulator.EventLogger;
 import santa.simulator.Random;
 import santa.simulator.Virus;
 import santa.simulator.SimulationEpoch;
+import santa.simulator.fitness.FitnessFactor;
 import santa.simulator.fitness.FitnessFunction;
 import santa.simulator.genomes.GenePool;
 import santa.simulator.genomes.Genome;
@@ -23,6 +25,7 @@ import santa.simulator.genomes.GenomeDescription;
 import santa.simulator.genomes.Mutation;
 import santa.simulator.genomes.Insertion;
 import santa.simulator.genomes.Deletion;
+import santa.simulator.genomes.Feature;
 import santa.simulator.genomes.Sequence;
 import santa.simulator.mutators.Mutator;
 import santa.simulator.replicators.RecombinationEvent;
@@ -153,7 +156,6 @@ public class RecombinantReplicator implements Replicator {
 
 			// create the recombinant genome description
 			GenomeDescription[] gd_parents = parents.stream().map(Genome::getDescription).toArray(GenomeDescription[]::new);
-
 						
 			Sequence recombinantSequence = getRecombinantSequence(parents, breakPoints);	
 			
@@ -243,8 +245,7 @@ public class RecombinantReplicator implements Replicator {
 
             SortedSet<Mutation> mutations = mutator.mutate(parentGenome);   
             
-            List<RecombinationEvent> old_rec_list = new ArrayList<>(RecombinantTracker.recombinationList);
-            
+            List<RecombinationEvent> old_rec_list = new ArrayList<>(RecombinantTracker.recombinationList);          
                         
             
             for (Mutation mute : mutations) {            	
@@ -268,10 +269,31 @@ public class RecombinantReplicator implements Replicator {
             	}            	
             }
             
+            for (FitnessFactor factor : fitnessFunction.getFactors()) {            	
+            	Feature feature = parentGenome.getDescription().getFeature(factor.getFeature().getName());
+            	int[] featureSiteTable = parentGenome.getDescription().getFeatureSiteTable(feature);
+            	
+            	for (Mutation mute : mutations) {
+            		int pos = mute.getPosition();
+            		
+            		if (featureSiteTable.length < pos) {
+            			System.out.println("WEEOOWEEOOO: ");
+            			System.out.println(pos);
+            			System.out.println(featureSiteTable.length);
+            			System.out.println(feature.getName());
+            			System.out.println("Factors' start and end positions: ");
+            			int factorcount = feature.getFragmentCount();
+            			
+            			for (int i =0; i < factorcount; i++) {
+            				System.out.println("[" + feature.getFragmentStart(i) + ", " + feature.getFragmentFinish(i) + "]");            				
+            			}
+            			
+            		}
+            	}
+            }            
             
             
-            //go through the mutations set, check if type is insertion or deletion, and modify recomb list accordingly
-              
+            //go through the mutations set, check if type is insertion or deletion, and modify recomb list accordingly      
             Genome genome = genePool.duplicateGenome(parentGenome, mutations, fitnessFunction);
 
             virus.setGenome(genome);

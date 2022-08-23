@@ -58,12 +58,23 @@ public class Mutation  implements Comparable<Mutation>  {
 	 * create a list of nucleotides changed by this mutation.
 	 */
 	public List<StateChange> getChanges(Genome genome, int[] featureSiteTable) {
+		
 		List<StateChange> l = new ArrayList<StateChange>();
-		if (featureSiteTable[this.position] != -1) {
-			byte oldState = genome.getNucleotide(this.position);
-			StateChange c = new StateChange(featureSiteTable[this.position], oldState, this.state);
-			l.add(c);
-		}
+		
+		try {
+			if (featureSiteTable[this.position] != -1) {
+				byte oldState = genome.getNucleotide(this.position);
+				StateChange c = new StateChange(featureSiteTable[this.position], oldState, this.state);
+				l.add(c);
+			}
+		} catch (java.lang.ArrayIndexOutOfBoundsException e) {
+			System.out.println("WARNING! The expected index error has happened: ");
+			System.out.println(this.position);
+			System.out.println(genome.getLength());	
+			System.out.println(featureSiteTable[this.position]);				
+			System.exit(0);
+		}		
+		
 		return (l);
 	}
 

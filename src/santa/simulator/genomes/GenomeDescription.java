@@ -171,12 +171,13 @@ public final class GenomeDescription {
 			currentGenome = 1 - currentGenome;
 			counter++;
 		}
+		
 		if (homo_breakPoints.last() < parents[currentGenome].genomeLength) {				
 			
 			if (counter==1) {
 				gd = new GenomeDescription(parents[currentGenome], 0, -homo_breakPoints.last());				
 			} else if (counter==2) {
-				gd = new GenomeDescription(parents[currentGenome], 0, -(homo_breakPoints.last() + breakPoints.first() - homo_breakPoints.first()) );				
+				gd = new GenomeDescription(parents[currentGenome], 0, -(homo_breakPoints.last() + breakPoints.first() - homo_breakPoints.first()));
 			}		
 			
 			if (gd_recomb == null)
@@ -186,6 +187,7 @@ public final class GenomeDescription {
 			}
 		} 
 		
+				
 		/*
 		System.out.println("GD Parent lengths: ");
 		System.out.println(parents[0].getGenomeLength());
@@ -255,8 +257,10 @@ public final class GenomeDescription {
 
 		// shift all the incoming features right by len
 		for (Feature feature : gd.features) {
-			if (feature.getName().equals("genome"))
-				continue;
+			//we cant just ignore genome feature now, since homological recombination affects it
+			
+			//if (feature.getName().equals("genome"))
+				//continue;
 			Feature tmp = new Feature(feature);
 			tmp.shift(len);
 			Feature existing = this.getFeature(feature.getName());
@@ -341,7 +345,7 @@ public final class GenomeDescription {
 	 * each feature and are stored in HashMaps indexed by the feature
 	 * name.
 	 */
-	private void computeSiteTables() {
+	public void computeSiteTables() {
 		this.featureSiteTables = new HashMap<String, int[]>();
 		this.genomeSiteTables = new HashMap<String, int[]>();
 

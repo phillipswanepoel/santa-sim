@@ -22,6 +22,10 @@ public final class FitnessFunction	{
 	int generation;
 	private List<FitnessFactor> factors;
 	private boolean[] recomputeFactor;
+	
+	public List<FitnessFactor> getFactors(){
+		return factors;
+	}
 
 	/**
 	 * A cache of calculated fitness contributions, for each factor,
