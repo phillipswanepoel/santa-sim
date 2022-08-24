@@ -165,6 +165,7 @@ public class RecombinantReplicator implements Replicator {
 			SortedSet<Integer> homo_bps = new TreeSet<Integer>(recombinantSequence.get_homologous_breakpoints());			
 			
 			GenomeDescription recombinantGenome = GenomeDescription.recombine(gd_parents, breakPoints, homo_bps);
+			recombinantGenome.computeSiteTables();
 			
 			//System.out.println("GD length2: ");
 			//System.out.println(recombinantGenome.getGenomeLength());

@@ -199,7 +199,7 @@ public final class GenomeDescription {
 		*/
 		
 		GenomeDescription gd_cached = cache.get(gd_recomb);
-		if (gd_cached != null) {	
+		if (gd_cached != null) {			
 			return(gd_cached);
 		} 
 		cache.put(gd_recomb, gd_recomb);
@@ -259,8 +259,8 @@ public final class GenomeDescription {
 		for (Feature feature : gd.features) {
 			//we cant just ignore genome feature now, since homological recombination affects it
 			
-			//if (feature.getName().equals("genome"))
-				//continue;
+			if (feature.getName().equals("genome"))
+				continue;
 			Feature tmp = new Feature(feature);
 			tmp.shift(len);
 			Feature existing = this.getFeature(feature.getName());
@@ -381,10 +381,10 @@ public final class GenomeDescription {
 	 * @param feature
 	 * @return integer array
 	 */
-	public int[] getFeatureSiteTable(Feature feature) {
+	public int[] getFeatureSiteTable(Feature feature) {		
 		if (featureSiteTables == null) {
 			computeSiteTables();
-		}
+		}			
 		return featureSiteTables.get(feature.getName());
 	}
 
@@ -395,10 +395,10 @@ public final class GenomeDescription {
 	 * @param feature
 	 * @return integer array
 	 */
-	public int[] getGenomeSiteTable(Feature feature) {
+	public int[] getGenomeSiteTable(Feature feature) {		
 		if (genomeSiteTables == null) {
 			computeSiteTables();
-		}
+		}	
 		return genomeSiteTables.get(feature.getName());
 	}
 
