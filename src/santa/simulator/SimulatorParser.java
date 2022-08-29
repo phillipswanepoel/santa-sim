@@ -130,7 +130,7 @@ public class SimulatorParser {
     private static final String PROBABLE_SET = "probableSet";
 
 	private final static String SEQUENCES = "sequences";
-	private final static String FILENAME = "file";
+	private final static String FILENAME = "file";	
 	private static final String BREAK_TIES = "breakTies";
 	private final static String BREAK_TIES_RANDOM = "random";
 	private final static String BREAK_TIES_ORDERED = "ordered";
@@ -155,6 +155,7 @@ public class SimulatorParser {
 	private final static String SAMPLING_SCHEDULE = "samplingSchedule";
 	private final static String SAMPLER = "sampler";
 	private final static String FILE_NAME = "fileName";
+	//private final static String FILE_NAME = "alignmentName";
 	private final static String AT_FREQUENCY = "atFrequency";
 	private final static String AT_GENERATION = "atGeneration";
 
@@ -497,7 +498,7 @@ public class SimulatorParser {
 				} catch (ParseException pe) {
 					throw new ParseException("Error parsing <" + EPOCH + "> element: " + pe.getMessage());
 				}
-			} else if (e.getName().equals(NAME)) {
+			} else if (e.getName().equals(NAME)) {				
 				name = e.getTextNormalize();
 			} else if (!e.getName().equals(FITNESS_FUNCTION) &&
 					!e.getName().equals(MUTATOR) &&
@@ -1239,7 +1240,7 @@ public class SimulatorParser {
 	private List<Sequence> parseAlignment(String text) throws ParseException {
 		List<Sequence> result = new ArrayList<Sequence>();
         int firstLength = 0;
-		String[] seqStrings;
+		String[] seqStrings;		
 
 		if (text.charAt(0) == '>') {
 			/* FASTA format */
@@ -1605,7 +1606,12 @@ public class SimulatorParser {
 					throw new ParseException("Error parsing <" + element.getName() + "> element: " + pe.getMessage());
 				}
 			} else if (e1.getName().equals(FILE_NAME)) {
-				fileName = e1.getTextNormalize();
+				try {
+					fileName = substituteParameter(e1.getValue());
+				} catch (ParseException pe) {
+					fileName = e1.getTextNormalize();
+				}
+				
 			} else {
 				// skip over it
 			}

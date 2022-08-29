@@ -9,6 +9,9 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.SortedSet;
 import java.util.TreeSet;
+
+import org.apache.commons.lang3.StringUtils;
+
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -695,8 +698,8 @@ public class AlignmentSampler implements Sampler {
         try {           
             endLength = finalStringsList.get(0).length();
             
-
-            PrintStream recombPrinter = new PrintStream("recombination_events.txt");
+            String name_without_fa = StringUtils.substringBefore(this.fileName, ".");        
+            PrintStream recombPrinter = new PrintStream("recombination_events_" + name_without_fa + ".txt");
             recombPrinter.println("EventNum*Breakpoints*Generation*Recombinant*Parents");
             List<RecombinationEvent> recList = RecombinantTracker.recombinationList;
 
@@ -732,8 +735,8 @@ public class AlignmentSampler implements Sampler {
 
         //Printing all sampled sequence names together with associated recombination events
         try {
-
-            PrintStream recombPrinter2 = new PrintStream("sequence_events_map.txt");
+        	String name_without_fa = StringUtils.substringBefore(this.fileName, "."); 
+            PrintStream recombPrinter2 = new PrintStream("sequence_events_map_" + name_without_fa + ".txt");
             recombPrinter2.println("Sequence*Events");        
             
             for (int h = 0; h < finalStringsList.size(); h++) {            
