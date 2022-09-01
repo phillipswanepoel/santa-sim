@@ -69,7 +69,7 @@ public class Mutation  implements Comparable<Mutation>  {
 			}
 		} catch (java.lang.ArrayIndexOutOfBoundsException e) {
 			System.out.println("WARNING! The expected index error has happened: ");
-			System.out.println(this.position);
+			System.out.println("genome length = ");		
 			System.out.println(genome.getLength());	
 			System.out.println(featureSiteTable[this.position]);				
 			System.exit(0);

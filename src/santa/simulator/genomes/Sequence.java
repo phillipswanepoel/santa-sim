@@ -92,4 +92,6 @@ public interface Sequence {
     void removeIndelEvent(List<Integer> indelEvent);
 
 	SortedSet<Integer> get_homologous_breakpoints();	
+	
+	SortedSet<Integer> get_normal_breakpoints();	
 }

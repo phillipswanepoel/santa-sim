@@ -125,9 +125,15 @@ public class RecombinantReplicator implements Replicator {
 			// Don't repeat a breakpoint, and only break at codon boundaries.
 			// Change: to ensure a breakpoint is actually selected:
 			// dont discard if bp%3!=0, rather add so that bp%3==0 always.
-			SortedSet<Integer> breakPoints = new TreeSet<Integer>();			
 						
-			for (int i = 0; i < nbreaks; i++) {							
+			SortedSet<Integer> breakPoints = new TreeSet<Integer>();
+			int gen_len = vparents[0].getGenome().getLength();
+			
+			//5% of genome as minimum length for recombination event
+			//int min_len = (int) (gen_len*0.05);
+			int min_len = 1;
+						
+			for (int i = 0; i < nbreaks; i++) {					
 				boolean valid = false;
 				
 				while (!valid) {
@@ -135,16 +141,31 @@ public class RecombinantReplicator implements Replicator {
 					
 					if (bp % 3 == 0) {
 						if (!(indel_positions.contains(bp))) {
-							breakPoints.add(bp);
-							valid = true;
+							if (breakPoints.isEmpty()) {
+								breakPoints.add(bp);
+								valid = true;
+							} else {
+								if ( Math.abs(breakPoints.first() - bp) >= min_len ) {
+									breakPoints.add(bp);
+									valid = true;
+								}
+							}
+							
 						} 
 					}
 					else {
 						bp = bp + (3-(bp % 3));
 						
 						if (!(indel_positions.contains(bp))) {
-							breakPoints.add(bp);
-							valid = true;
+							if (breakPoints.isEmpty()) {
+								breakPoints.add(bp);
+								valid = true;
+							} else {
+								if ( Math.abs(breakPoints.first() - bp) >= min_len ) {
+									breakPoints.add(bp);
+									valid = true;
+								}
+							}
 						} 						
 					}
 				}	
@@ -159,13 +180,20 @@ public class RecombinantReplicator implements Replicator {
 						
 			Sequence recombinantSequence = getRecombinantSequence(parents, breakPoints);	
 			
-			//System.out.println("Recombinant Seq length: ");
-			//System.out.println(recombinantSequence.getLength());			
+			//getting updated bps from homologous recombination event
+			SortedSet<Integer> homo_bps = new TreeSet<Integer>(recombinantSequence.get_homologous_breakpoints());	
+			SortedSet<Integer> normal_bps = new TreeSet<Integer>(recombinantSequence.get_normal_breakpoints());
 			
-			SortedSet<Integer> homo_bps = new TreeSet<Integer>(recombinantSequence.get_homologous_breakpoints());			
+			int last_bp = normal_bps.last();
+			int first_homo = homo_bps.first();
 			
-			GenomeDescription recombinantGenome = GenomeDescription.recombine(gd_parents, breakPoints, homo_bps);
-			recombinantGenome.computeSiteTables();
+			if (last_bp == first_homo && normal_bps.size() > 1) {				
+				System.out.println(normal_bps);
+				System.out.println(homo_bps);
+				System.out.println("HELLO?");
+			}
+			
+			GenomeDescription recombinantGenome = GenomeDescription.recombine(gd_parents, normal_bps, homo_bps, recombinantSequence.getLength());			
 			
 			//System.out.println("GD length2: ");
 			//System.out.println(recombinantGenome.getGenomeLength());
@@ -228,8 +256,7 @@ public class RecombinantReplicator implements Replicator {
 	            newRecombinationList.addAll(recombinations1);	            
 	            virus.setRecombinationList(newRecombinationList); 
 
-	            //Creating recombination event to store recombination information	            
-				//RecombinationEvent rec = new RecombinationEvent(genome, genome.getSequence().getNucleotides(), parents, parentSeqs, breakPoints, generation);
+	            //Creating recombination event to store recombination information	
 				RecombinationEvent rec = new RecombinationEvent(genome, homo_bps, generation, parents);					
 				int len = RecombinantTracker.recombinationList.size();		
 				RecombinantTracker.recombinationList.add(rec);

@@ -1109,7 +1109,15 @@ public final class SimpleSequence implements Sequence {
 		List<Integer> listBreakPoints = new ArrayList<Integer>(indels.getBreakPoints());	
 		List<Integer> homologousBreakPoints = new ArrayList<Integer>(indels.getHomologousBreakPoints());
 		
-				
+		//checking if homo_bp is at end of genome, then we don't have to do anything (except maybe chop off a bit?)
+		if (homologousBreakPoints.get(0) >= parents[1].getLength()) {			
+			homologous_breakpoints.add(homologousBreakPoints.get(0));
+			
+			//take parents[0], but only until last breakpoint			
+			return parents[0];
+		}
+		
+		
 		//List<Integer> homologousBreakPoints = 
 		//homologousBreakPoints = calcHomologousBreakpoints();
 		int recombinant_len = 0;
@@ -1188,22 +1196,40 @@ static int last_homo;
 	
     static SimpleSequence getRecombinantSequence(SimpleSequence[] parents, SortedSet<Integer> breakPoints) {
     	homologous_breakpoints.clear();
+    	normal_breakpoints.clear();
     	
     	
-	 	if (breakPoints.size() == 1) {	 		
+	 	if (breakPoints.size() == 1) {	 
+	 		normal_breakpoints.add(breakPoints.first());
 	 		return getRecombinantSeq(parents, breakPoints);
 	 		
 	 	} else {		
 	 		
 	 		SortedSet<Integer> new_breaks = new TreeSet<Integer>();
-	 		new_breaks.add(breakPoints.first());
+	 		int first_break = breakPoints.first();
+	 		new_breaks.add(first_break);
+	 		normal_breakpoints.add(first_break);
+	 		
 	 		SimpleSequence seq1 = getRecombinantSeq(parents, new_breaks);
 	 		
-	 		new_breaks.clear();	 		
+	 		new_breaks.clear();	 	
 	 		
-	 		int last_bp = breakPoints.last();
-	 		last_bp = Math.min(last_bp, seq1.getLength());	
-	 		new_breaks.add(last_bp);	 	
+	 		int last_bp = breakPoints.last();	 			 				 		
+	 		
+	 		//sometimes homology leads to small events being ignored basically, since first homologous breakpoint will lie further
+	 		//than the second non-homologous breakpoint. This is a non-sensical event, caused since non-homologous breakpoints are
+	 		//chosen without respecting homology.
+	 		
+	 		//Can fix by just moving things to the right a bit
+	 		int first_homo = homologous_breakpoints.first();
+	 	
+	 		if (first_homo >= last_bp) {
+	 			last_bp += first_homo - breakPoints.first();	 			
+	 		}
+	 		
+	 		last_bp = Math.min(last_bp, seq1.getLength());
+	 		new_breaks.add(last_bp);
+	 		normal_breakpoints.add(last_bp);
 	 		
 	 		SimpleSequence[] parents_rev = new SimpleSequence[] {seq1, parents[0]};
 	 		SimpleSequence final_seq = getRecombinantSeq(parents_rev, new_breaks);	
@@ -1216,9 +1242,14 @@ static int last_homo;
 	}	
 	
 static SortedSet<Integer> homologous_breakpoints = new TreeSet<Integer>();
+static SortedSet<Integer> normal_breakpoints = new TreeSet<Integer>();
  
  	public SortedSet<Integer> get_homologous_breakpoints(){
  		return homologous_breakpoints;
+ 	}
+ 	
+ 	public SortedSet<Integer> get_normal_breakpoints(){
+ 		return normal_breakpoints;
  	}
 
 	public List<List<Integer>> getIndelList() {

@@ -698,7 +698,7 @@ public class AlignmentSampler implements Sampler {
         try {           
             endLength = finalStringsList.get(0).length();
             
-            String name_without_fa = StringUtils.substringBefore(this.fileName, ".");        
+            String name_without_fa = this.fileName.substring(0, this.fileName.lastIndexOf("."));        
             PrintStream recombPrinter = new PrintStream("recombination_events_" + name_without_fa + ".txt");
             recombPrinter.println("EventNum*Breakpoints*Generation*Recombinant*Parents");
             List<RecombinationEvent> recList = RecombinantTracker.recombinationList;
@@ -735,7 +735,7 @@ public class AlignmentSampler implements Sampler {
 
         //Printing all sampled sequence names together with associated recombination events
         try {
-        	String name_without_fa = StringUtils.substringBefore(this.fileName, "."); 
+        	String name_without_fa = this.fileName.substring(0, this.fileName.lastIndexOf("."));
             PrintStream recombPrinter2 = new PrintStream("sequence_events_map_" + name_without_fa + ".txt");
             recombPrinter2.println("Sequence*Events");        
             

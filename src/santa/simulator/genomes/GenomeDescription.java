@@ -129,7 +129,8 @@ public final class GenomeDescription {
 	 * description object after applying an indel, and appending one
 	 * description to another.
 	 */
-	public static GenomeDescription recombine(GenomeDescription[] parents, SortedSet<Integer> breakPoints, SortedSet<Integer> homo_breakPoints) {
+	public static GenomeDescription recombine(GenomeDescription[] parents, SortedSet<Integer> breakPoints, 
+			SortedSet<Integer> homo_breakPoints, int seq_len) {
 		/*
 		  Shortcut - if both parents are identical, then the recombined hybrid will have the same feature description.
 		*/
@@ -137,8 +138,7 @@ public final class GenomeDescription {
 		if (parents[0].equals(parents[1]) && (breakPoints.equals(homo_breakPoints))) {
 			//System.out.println("ITS THE SAME PARENT");
 			return parents[0];
-		}
-		
+		}		
 		
 		/*
 		  The first call to applyIndel() below truncates
@@ -155,9 +155,11 @@ public final class GenomeDescription {
 		assert(parents[0].genomeLength <= parents[1].genomeLength);
 		GenomeDescription gd = parents[currentGenome];
 		GenomeDescription gd_recomb = null;
-		int counter = 0;
+		int counter = 0;			
+		
 		for (int nextBreakPoint: breakPoints) {			
-			
+			assert(nextBreakPoint>=lastBreakPoint);
+						
 			gd = new GenomeDescription(parents[currentGenome], 0, -lastBreakPoint);
 			gd = new GenomeDescription(gd, nextBreakPoint-lastBreakPoint, -(parents[currentGenome].genomeLength - nextBreakPoint));
 
@@ -170,33 +172,51 @@ public final class GenomeDescription {
 			lastBreakPoint = homo_breakPoints.first();
 			currentGenome = 1 - currentGenome;
 			counter++;
-		}
-		
-		if (homo_breakPoints.last() < parents[currentGenome].genomeLength) {				
+		}	
 			
+		if (homo_breakPoints.last() < parents[currentGenome].genomeLength) {
 			if (counter==1) {
 				gd = new GenomeDescription(parents[currentGenome], 0, -homo_breakPoints.last());				
 			} else if (counter==2) {
 				gd = new GenomeDescription(parents[currentGenome], 0, -(homo_breakPoints.last() + breakPoints.first() - homo_breakPoints.first()));
-			}		
+				//gd = new GenomeDescription(parents[currentGenome], 0, -homo_breakPoints.last());
+			}
 			
 			if (gd_recomb == null)
 				gd_recomb = gd;
 			else {
 				gd_recomb.append(gd);
 			}
-		} 
-		
+			
+		} else if (counter == 2 ) {
+			currentGenome = 1 - currentGenome;
+			gd = new GenomeDescription(parents[currentGenome], 0, -breakPoints.last());	
+			
+			if (gd_recomb == null)
+				gd_recomb = gd;
+			else {
+				gd_recomb.append(gd);
+			}
+		}
 				
-		/*
-		System.out.println("GD Parent lengths: ");
-		System.out.println(parents[0].getGenomeLength());
-		System.out.println(parents[1].getGenomeLength());
-		System.out.println("Breakpoints: ");
-		System.out.println(breakPoints);
-		System.out.println("Homo Breakpoints: ");
-		System.out.println(homo_breakPoints);
-		*/
+		if (gd_recomb.genomeLength != seq_len) {
+			System.out.println("GD Parent lengths: ");
+			System.out.println(parents[0].getGenomeLength());
+			System.out.println(parents[1].getGenomeLength());
+			System.out.println("Breakpoints: ");
+			System.out.println(breakPoints);
+			System.out.println("Homo Breakpoints: ");
+			System.out.println(homo_breakPoints);
+			System.out.println("Seq len: ");
+			System.out.println(seq_len);
+			System.out.println("Description len: ");
+			System.out.println(gd_recomb.genomeLength);
+			System.out.println("");
+		}
+		
+		//for ()
+		//System.out.println(featureSiteTables);
+		
 		
 		GenomeDescription gd_cached = cache.get(gd_recomb);
 		if (gd_cached != null) {			
@@ -257,10 +277,10 @@ public final class GenomeDescription {
 
 		// shift all the incoming features right by len
 		for (Feature feature : gd.features) {
-			//we cant just ignore genome feature now, since homological recombination affects it
-			
+			//we cant just ignore genome feature now, since homological recombination affects it			
 			if (feature.getName().equals("genome"))
 				continue;
+			
 			Feature tmp = new Feature(feature);
 			tmp.shift(len);
 			Feature existing = this.getFeature(feature.getName());
