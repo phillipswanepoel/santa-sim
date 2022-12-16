@@ -1,3 +1,7 @@
+# Forked version
+
+Useage is the same as santa-sim, except that when you choose FASTA as the output format the output will be globally aligned + there will additional output text files that give a history for all recombination events inherited in the sample.
+
 # santa-sim
 
 SANTA is JAVA software application that simulates the evolution of a population of gene sequences
